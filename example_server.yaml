@@ -1,0 +1,34 @@
+# ==== Example server configuration
+
+# Set to e.g. 0.0.0.0:8080 to listen on all interfaces
+listenaddr: 127.0.0.1:8080
+
+# If you have the gateway behind a reverse proxy to
+# trust the X-Forwarded-For
+trustedproxies: []
+meters:
+
+    # Name is required to identify the meter in the GET request
+  - name: power
+    # Device configuration
+    device:
+      # Device serial connection
+      device: /dev/ttyUSB1
+    parser:
+      # If the parser shall fail if any OBIS data fails to parse
+      # - otherwise the entry will be skipped
+      strictmode: false
+
+    # After a request, the value will be cached for this time
+    # and will be served to subsequent GET requests. If you do
+    # regular polls, choose this value a little smaller than
+    # your poll interval.
+    ratelimitmaxage: 55s
+
+    # You can specify more than one meter
+  - name: heat
+    device:
+      device: /dev/ttyUSB2
+    parser:
+      strictmode: false
+    ratelimitmaxage: 55m

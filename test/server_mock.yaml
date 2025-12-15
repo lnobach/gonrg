@@ -1,0 +1,21 @@
+listenaddr: 127.0.0.1:8080
+trustedproxies: []
+meters:
+  - name: mockebz1
+    device:
+      device: ebz1
+    parser:
+      strictmode: false
+    ratelimitmaxage: 1m
+  - name: mockebz2
+    device:
+      device: ebz2
+    parser:
+      strictmode: false
+    ratelimitmaxage: 2m
+  - name: mock_lugcuh50
+    device:
+      device: lugcuh50_1
+    parser:
+      strictmode: false
+    ratelimitmaxage: 5m
