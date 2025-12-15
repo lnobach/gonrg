@@ -178,37 +178,6 @@ john@doe:~/foo$ curl http://server:8080/meter/power/1.8.0
 }
 ```
 
-## Set Me Up - Library
-
-You can start a thread-safe server which listens to incoming JSON/REST connections
-and serves OBIS data.
-
-First, create a server configuration by using the [example_server.yaml](./example_server.yaml)
-as a template. Then start the server with:
-
-```
-john@doe:~/foo$ gonrg server -C my_server_config.yaml
-```
-
-You can use curl to test fetching OBIS data:
-```
-john@doe:~/foo$ curl http://server:8080/meter/power/1.8.0
-{
-    "measurementTime": "2025-12-15T21:17:57.759573978+01:00",
-    "deviceID": "EBZ5DD12345ETA_104",
-    "list": {
-        "exactKey": "1-0:1.8.0*255",
-        "simplifiedKey": "1.8.0",
-        "name": "energy_cons",
-        "valueText": "",
-        "valueNum": 234172889972,
-        "valueScale": 8,
-        "valueFloat": 2341.72889972,
-        "unit": "kWh"
-    }
-}
-```
-
 ## Miscellaneous
 
 - If you encounter errors, try to append the `--debug` flag to see what is going on.
