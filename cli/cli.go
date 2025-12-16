@@ -13,12 +13,16 @@ import (
 )
 
 var (
-	debug      bool
-	jsonOut    bool
-	device     string
-	baudrate   int
-	strictMode bool
-	rootCmd    = &cobra.Command{
+	debug         bool
+	jsonOut       bool
+	device        string
+	baudrate      int
+	baudrate_read int
+	responsedelay time.Duration
+	d0timeout     time.Duration
+	strictMode    bool
+	dev_opts      *[]string
+	rootCmd       = &cobra.Command{
 		Use:     "gonrg",
 		Short:   "\u26A1\uFE0F gonrg - a simple D0 OBIS energy meter CLI tool or server.",
 		Long:    "\u26A1\uFE0F gonrg - a simple D0 OBIS energy meter CLI tool or server.",
@@ -31,8 +35,12 @@ var (
 			}
 
 			d, err := d0.NewDevice(d0.DeviceConfig{
-				Device:   device,
-				BaudRate: baudrate,
+				Device:        device,
+				BaudRate:      baudrate,
+				BaudRateRead:  baudrate_read,
+				ResponseDelay: responsedelay,
+				D0Timeout:     d0timeout,
+				DeviceOptions: *dev_opts,
 			})
 			if err != nil {
 				panic(err)
@@ -103,9 +111,13 @@ func init() {
 	rootCmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output json instead of pretty table")
 	rootCmd.Flags().StringVarP(&device, "device", "d", "/dev/ttyUSB0", "device to read from")
 	rootCmd.Flags().IntVarP(&baudrate, "baudrate", "b", 0, "baud rate, 0 means choose best option")
+	rootCmd.Flags().IntVarP(&baudrate_read, "baudrate-read", "r", 0, "baud rate for reading, 0 means same like baudrate")
+	rootCmd.Flags().DurationVarP(&responsedelay, "response-delay", "l", 0, "wait before expecting response")
+	rootCmd.Flags().DurationVarP(&d0timeout, "d0-timeout", "t", 0, "read timeout of the d0 serial connection")
+	dev_opts = rootCmd.Flags().StringSliceP("device-option", "o", []string{}, "device option")
 	rootCmd.Flags().BoolVarP(&strictMode, "strict", "S", false, "strict mode for parsing - fail fast")
 	rootCmd.AddCommand(serverCmd)
-	serverCmd.Flags().StringVarP(&config, "config", "C", "/etc/gonrg.yaml", "Config to use for server")
+	serverCmd.Flags().StringVarP(&config, "config", "C", "/etc/gonrg.yaml", "config to use for server")
 	serverCmd.Flags().BoolVarP(&debug, "debug", "D", false, "set debug log level")
 
 }

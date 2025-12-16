@@ -1,5 +1,7 @@
 package options
 
+import "strings"
+
 type Options []string
 
 func (o Options) HasOption(name string) bool {
@@ -10,4 +12,8 @@ func (o Options) HasOption(name string) bool {
 		}
 	}
 	return false
+}
+
+func (o Options) String() string {
+	return strings.Join(o, ",")
 }

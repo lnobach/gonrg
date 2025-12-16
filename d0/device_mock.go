@@ -26,6 +26,7 @@ func deviceSetDefaults(c *DeviceConfig) error {
 	if strings.TrimSpace(c.Device) == "" {
 		return fmt.Errorf("device must not be empty")
 	}
+	log.Debugf("Using device option(s) %s", c.DeviceOptions)
 	return nil
 }
 

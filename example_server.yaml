@@ -14,6 +14,23 @@ meters:
     device:
       # Device serial connection
       device: /dev/ttyUSB1
+
+      # Set the initial baud rate if necessary (optional)
+#      baudrate: 9600
+
+      # Set the baud rate for reading values (optional)
+#      baudrateread: 9600
+
+      # Wait before expecting response
+#      responsedelay: time.Duration
+
+      # Set a timeout for serial D0 communication (optional)
+#      d0timeout: 500ms
+
+      # Device options are optional string flags which can be applied
+#      deviceoptions:
+#        - "0preamble"
+
     parser:
       # If the parser shall fail if any OBIS data fails to parse
       # - otherwise the entry will be skipped

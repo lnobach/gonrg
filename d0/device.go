@@ -8,11 +8,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"go.bug.st/serial"
-)
-
-const (
-	D0Timeout = 4 * time.Second
 )
 
 type deviceImpl struct {
@@ -38,6 +35,12 @@ func deviceSetDefaults(c *DeviceConfig) error {
 		c.BaudRate = 9600
 	}
 
+	if c.D0Timeout <= 0 {
+		c.D0Timeout = 8 * time.Second
+	}
+
+	log.Debugf("Using device option(s) %s", c.DeviceOptions)
+
 	return nil
 
 }
@@ -55,16 +58,34 @@ func (d *deviceImpl) Get() (string, error) {
 		},
 	}
 
+	start := time.Now()
+
 	port, err := serial.Open(d.config.Device, sermode)
 	if err != nil {
 		return "", err
 	}
 	defer port.Close()
-	err = port.SetReadTimeout(D0Timeout)
+	err = port.SetReadTimeout(d.config.D0Timeout)
 	if err != nil {
 		return "", err
 	}
 
+	if d.config.DeviceOptions.HasOption("0preamble") {
+
+		log.Debugf("sending 0preamble...")
+
+		_, err = port.Write([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"))
+		if err != nil {
+			return "", err
+		}
+		_, err = port.Write([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"))
+		if err != nil {
+			return "", err
+		}
+
+	}
+
+	log.Debugf("sending request code...")
 	_, err = port.Write([]byte("/?!\x0D\x0A"))
 	if err != nil {
 		return "", err
@@ -74,8 +95,15 @@ func (d *deviceImpl) Get() (string, error) {
 		return "", err
 	}
 
+	if d.config.ResponseDelay > 0 {
+		log.Debugf("waiting response_delay...")
+		time.Sleep(d.config.ResponseDelay)
+	}
+
 	response := ""
 
+	log.Debugf("reading response...")
+	baudRateChanged := false
 	foundStart := false
 	scanner := bufio.NewScanner(port)
 	for scanner.Scan() {
@@ -88,11 +116,21 @@ func (d *deviceImpl) Get() (string, error) {
 				break
 			}
 			response += line + "\n"
+			if !baudRateChanged {
+				if d.config.BaudRateRead > 0 {
+					sermode.BaudRate = d.config.BaudRateRead
+					port.SetMode(sermode)
+				}
+
+				baudRateChanged = true
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return response, err
 	}
+	log.Debugf("completed reading of response. Total time for d0 transaction: %s",
+		time.Since(start))
 
 	return response, nil
 

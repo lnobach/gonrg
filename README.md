@@ -20,7 +20,7 @@ OBIS meter data, or as a client to connect with a remote gonrg server.
   - Tested with and without extended data (detailed per-phase power).
 - **Landis+Gyr Ultraheat T550**
   - District heating meter
-  - Required params: `--baudrate 300`
+  - Required params: `--baudrate 300 --baudrate-read 2400 --device-option 0preamble`
   - Only poll daily or hourly because the device runs on battery.
 
 gonrg is probably compatible with many other devices. If you can verify compatibility,
@@ -55,13 +55,17 @@ Available Commands:
   server      run in server mode given a config
 
 Flags:
-  -b, --baudrate int    baud rate, 0 means choose best option
-  -D, --debug           set debug log level
-  -d, --device string   device to read from (default "/dev/ttyUSB0")
-  -h, --help            help for gonrg
-  -j, --json            output json instead of pretty table
-  -S, --strict          strict mode for parsing - fail fast
-  -v, --version         version for gonrg
+  -b, --baudrate int              baud rate, 0 means choose best option
+  -r, --baudrate-read int         baud rate for reading, 0 means same like baudrate
+  -t, --d0-timeout duration       read timeout of the d0 serial connection
+  -D, --debug                     set debug log level
+  -d, --device string             device to read from (default "/dev/ttyUSB0")
+  -o, --device-option strings     device option
+  -h, --help                      help for gonrg
+  -j, --json                      output json instead of pretty table
+  -l, --response-delay duration   wait before expecting response
+  -S, --strict                    strict mode for parsing - fail fast
+  -v, --version                   version for gonrg
 
 Use "gonrg [command] --help" for more information about a command.
 ```
@@ -74,7 +78,7 @@ data of your meter:
 ```
 john@doe:~/foo$ gonrg --device /dev/ttyUSB1
 
-⚡️gonrg version 0.1.0
+⚡️gonrg version 0.1.1
 Device ID: EBZ5DD12345ETA_104
 
 Exact Key       Simple Key  Name         Value           Unit  
