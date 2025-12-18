@@ -5,6 +5,7 @@ package d0
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -36,6 +37,12 @@ func (d *deviceImpl) Get() (string, error) {
 		return "", fmt.Errorf("device not found: %s, available mock devices: %v", d.config.Device, keysToStr(Mock_map))
 	}
 	log.Warnf("not using a real device, mocking %s", d.config.Device)
+
+	if d.config.ResponseDelay > 0 {
+		log.Debugf("waiting response_delay...")
+		time.Sleep(d.config.ResponseDelay)
+	}
+
 	return response, nil
 }
 

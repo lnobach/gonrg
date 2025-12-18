@@ -4,7 +4,9 @@ package d0
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -105,7 +107,7 @@ func (d *deviceImpl) Get() (string, error) {
 	log.Debugf("reading response...")
 	baudRateChanged := false
 	foundStart := false
-	scanner := bufio.NewScanner(port)
+	scanner := bufio.NewScanner(NewTimeoutReader(port))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !foundStart && strings.HasPrefix(line, "/") {
@@ -134,4 +136,23 @@ func (d *deviceImpl) Get() (string, error) {
 
 	return response, nil
 
+}
+
+type timeoutReader struct {
+	r io.Reader
+}
+
+var errTimeout = errors.New("timed out while waiting for d0 response")
+
+// see https://github.com/bugst/go-serial/issues/148
+func NewTimeoutReader(r io.Reader) timeoutReader {
+	return timeoutReader{r}
+}
+
+func (t timeoutReader) Read(p []byte) (n int, err error) {
+	n, err = t.r.Read(p)
+	if n == 0 && err == nil {
+		err = errTimeout
+	}
+	return
 }

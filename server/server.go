@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lnobach/gonrg/obis"
+	"github.com/lnobach/gonrg/version"
+	log "github.com/sirupsen/logrus"
 )
 
 type serverImpl struct {
@@ -39,6 +41,15 @@ func serverSetDefaults(_ *ServerConfig) error {
 }
 
 func (s *serverImpl) ListenAndServe() error {
+	log.Infof("%s server, version %s", version.GonrgName, version.GonrgVersion)
+
+	for mtr, msched := range s.meters {
+		err := msched.Init()
+		if err != nil {
+			return fmt.Errorf("error setting up scheduler for meter %s: %w", mtr, err)
+		}
+	}
+
 	if s.debug {
 		gin.SetMode(gin.DebugMode)
 	} else {

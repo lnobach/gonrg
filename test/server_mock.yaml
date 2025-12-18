@@ -16,6 +16,7 @@ meters:
   - name: mock_lugcuh50
     device:
       device: lugcuh50_1
+      responsedelay: 2s
     parser:
       strictmode: false
-    ratelimitmaxage: 5m
+    cron: "0/10 * * * * ?"

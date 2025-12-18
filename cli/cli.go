@@ -30,9 +30,7 @@ var (
 
 		Run: func(cmd *cobra.Command, args []string) {
 
-			if debug {
-				log.SetLevel(log.DebugLevel)
-			}
+			setLogLevel()
 
 			d, err := d0.NewDevice(d0.DeviceConfig{
 				Device:        device,
@@ -81,9 +79,8 @@ var (
 		Long:  "run in server mode given a config",
 
 		Run: func(cmd *cobra.Command, args []string) {
-			if debug {
-				log.SetLevel(log.DebugLevel)
-			}
+
+			setLogLevel()
 
 			conf, err := server.ConfigFromFile(config)
 			if err != nil {
@@ -101,6 +98,14 @@ var (
 		},
 	}
 )
+
+func setLogLevel() {
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+}
 
 func Start() error {
 	return rootCmd.Execute()
