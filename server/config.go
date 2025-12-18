@@ -22,6 +22,7 @@ type ServedMeterConfig struct {
 	Device          d0.DeviceConfig
 	Parser          d0.ParseConfig
 	RateLimitMaxAge time.Duration
+	Cron            string
 }
 
 func ConfigFromFile(filename string) (*ServerConfig, error) {
