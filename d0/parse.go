@@ -3,6 +3,7 @@ package d0
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"regexp"
 	"strconv"
@@ -32,11 +33,12 @@ func parseSetDefaults(_ *ParseConfig) error {
 
 func (p parserImpl) GetOBISMap(rawdata string, measurementTime time.Time) (*obis.OBISMappedResult, error) {
 
+	obismap_exact := make(obis.OBISMap)
 	obismap := make(obis.OBISMap)
 	obislist := make(obis.OBISList, 0, 20)
 
 	deviceid, err := p.parseObis(rawdata, func(e *obis.OBISEntry) error {
-		obismap[e.ExactKey] = e
+		obismap_exact[e.ExactKey] = e
 		obismap[e.SimplifiedKey] = e
 		if e.Name != "" {
 			obismap[e.Name] = e
@@ -47,6 +49,8 @@ func (p parserImpl) GetOBISMap(rawdata string, measurementTime time.Time) (*obis
 	if err != nil {
 		return nil, fmt.Errorf("error parsing obis data: %w", err)
 	}
+
+	maps.Copy(obismap, obismap_exact)
 
 	return &obis.OBISMappedResult{DeviceID: deviceid, MeasurementTime: measurementTime,
 		List: obislist, Map: obismap}, nil
