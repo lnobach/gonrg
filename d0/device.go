@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lnobach/gonrg/util"
 	log "github.com/sirupsen/logrus"
 	"go.bug.st/serial"
 )
@@ -66,7 +67,7 @@ func (d *deviceImpl) Get() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer port.Close()
+	defer util.LogDeferWarn(port.Close)
 	err = port.SetReadTimeout(d.config.D0Timeout)
 	if err != nil {
 		return "", err
@@ -121,7 +122,10 @@ func (d *deviceImpl) Get() (string, error) {
 			if !baudRateChanged {
 				if d.config.BaudRateRead > 0 {
 					sermode.BaudRate = d.config.BaudRateRead
-					port.SetMode(sermode)
+					err := port.SetMode(sermode)
+					if err != nil {
+						log.WithError(err).Warn("could not change mode for reading obis data")
+					}
 				}
 
 				baudRateChanged = true
