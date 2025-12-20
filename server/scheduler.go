@@ -105,12 +105,16 @@ func (s *Scheduler) fetchValueCron() {
 	start := time.Now()
 	result, err := s.fetchValueSafe()
 	if err != nil {
-		log.WithError(err).Errorf("error fetching value for meter %s", s.config.Name)
+		result = nil
 	}
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.lastVal = result
-	log.Debugf("fetched value for meter %s, duration %s", s.config.Name, time.Since(start))
+	if err != nil {
+		log.WithError(err).Errorf("error fetching value for meter %s, duration %s", s.config.Name, time.Since(start))
+	} else {
+		log.Debugf("fetched value for meter %s, duration %s", s.config.Name, time.Since(start))
+	}
 }
 
 func (s *Scheduler) fetchValueSafe() (result *obis.OBISMappedResult, err error) {

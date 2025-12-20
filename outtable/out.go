@@ -17,10 +17,10 @@ func PrintTable(res *obis.OBISListResult) {
 
 	fmt.Println()
 	fmt.Print("\u26A1\uFE0F") // lightning symbol
-	raised.Print(version.GonrgName)
+	_, _ = raised.Print(version.GonrgName)
 	fmt.Printf(" version %s\n", version.GonrgVersion)
 	fmt.Print("Device ID: ")
-	raised.Println(res.DeviceID)
+	_, _ = raised.Println(res.DeviceID)
 
 	fmt.Println()
 

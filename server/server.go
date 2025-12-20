@@ -89,13 +89,20 @@ func (s *serverImpl) getMeterValue(c *gin.Context) {
 
 	sched, exists := s.meters[meter]
 	if !exists {
-		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "meter not found or no data yet"})
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "meter not found"})
 		return
 	}
 
 	val, err := sched.GetValue()
 	if err != nil {
+		log.WithError(err).Warn("error while trying to get value")
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value, see server logs"})
+		return
+	}
+	if val == nil {
+		log.Debug("value we tried to get is nil")
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value because no data"})
+		return
 	}
 
 	obiskey := c.Param("obiskey")
