@@ -20,7 +20,7 @@ OBIS meter data, or as a client to connect with a remote gonrg server.
   - Tested with and without extended data (detailed per-phase power).
 - **Landis+Gyr Ultraheat T550**
   - District heating meter
-  - Required params: `--baudrate 300 --baudrate-read 2400 --device-option 0preamble`
+  - Required params: `--baudrate 300 --baudrate-read 2400 --device-option 0preamble --response-delay 300ms`
   - Only poll daily or hourly because the device runs on battery.
 
 gonrg is probably compatible with many other devices. If you can verify compatibility,
