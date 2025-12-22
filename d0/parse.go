@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,13 +30,13 @@ func parseSetDefaults(_ *ParseConfig) error {
 	return nil
 }
 
-func (p parserImpl) GetOBISMap(rawdata string, measurementTime time.Time) (*obis.OBISMappedResult, error) {
+func (p parserImpl) GetOBISMap(data ParseableRawData, measurementTime time.Time) (*obis.OBISMappedResult, error) {
 
 	obismap_exact := make(obis.OBISMap)
 	obismap := make(obis.OBISMap)
 	obislist := make(obis.OBISList, 0, 20)
 
-	deviceid, err := p.parseObis(rawdata, func(e *obis.OBISEntry) error {
+	deviceid, err := data.ParseObis(p.config, func(e *obis.OBISEntry) error {
 		obismap_exact[e.ExactKey] = e
 		obismap[e.SimplifiedKey] = e
 		if e.Name != "" {
@@ -57,11 +56,11 @@ func (p parserImpl) GetOBISMap(rawdata string, measurementTime time.Time) (*obis
 
 }
 
-func (p parserImpl) GetOBISList(rawdata string, measurementTime time.Time) (*obis.OBISListResult, error) {
+func (p parserImpl) GetOBISList(data ParseableRawData, measurementTime time.Time) (*obis.OBISListResult, error) {
 
 	obislist := make(obis.OBISList, 0, 20)
 
-	deviceid, err := p.parseObis(rawdata, func(e *obis.OBISEntry) error {
+	deviceid, err := data.ParseObis(p.config, func(e *obis.OBISEntry) error {
 		obislist = append(obislist, e)
 		return nil
 	})
@@ -74,14 +73,22 @@ func (p parserImpl) GetOBISList(rawdata string, measurementTime time.Time) (*obi
 
 }
 
+type RawData struct {
+	raw string
+}
+
+func RawDataFromString(raw string) *RawData {
+	return &RawData{raw: raw}
+}
+
 var (
 	r_obis = regexp.MustCompile(`((?:[0-9]+-[0-9]+:)?((?:[0-9]+\.)?[0-9]+\.[0-9]+)(?:\*[0-9]+)?)\(([^\)\n]*)\)`)
 	r_val  = regexp.MustCompile(`^([+-]?[0-9]+)(\.([0-9]+))?(\*([A-Za-z0-9_-]+))?$`)
 )
 
-func (p parserImpl) parseObis(rawdata string, foundSet func(*obis.OBISEntry) error) (string, error) {
+func (d *RawData) ParseObis(cfg *ParseConfig, foundSet func(*obis.OBISEntry) error) (string, error) {
 
-	beg := strings.SplitN(rawdata, "\n", 2)
+	beg := strings.SplitN(d.raw, "\n", 2)
 	if !strings.HasPrefix(beg[0], "/") {
 		return "", errors.New("no preamble in data")
 	}
@@ -114,15 +121,15 @@ func (p parserImpl) parseObis(rawdata string, foundSet func(*obis.OBISEntry) err
 			int_val := pre_dot + post_dot
 			e.ValueNum, err = strconv.ParseInt(int_val, 10, 64)
 			if err != nil {
-				if p.config.StrictMode {
+				if cfg.StrictMode {
 					return "", fmt.Errorf("could not parse integer value '%s': %w", int_val, err)
 				} else {
 					log.WithError(err).Errorf("could not parse integer value '%s'", int_val)
 					continue
 				}
 			}
-			e.ValueScale = len(post_dot)
-			e.ValueFloat = float64(e.ValueNum) * math.Pow10(-e.ValueScale)
+			e.ValueScale = -len(post_dot)
+			obis.Floatify(e)
 			e.Unit = val_elems[5]
 		} else {
 			e.ValueText = valRaw
@@ -130,7 +137,7 @@ func (p parserImpl) parseObis(rawdata string, foundSet func(*obis.OBISEntry) err
 
 		err := foundSet(e)
 		if err != nil {
-			if p.config.StrictMode {
+			if cfg.StrictMode {
 				return "", fmt.Errorf("could not use obis set: %w", err)
 			} else {
 				log.WithError(err).Errorf("could not use obis set")

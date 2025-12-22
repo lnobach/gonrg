@@ -31,10 +31,10 @@ func deviceSetDefaults(c *DeviceConfig) error {
 	return nil
 }
 
-func (d *deviceImpl) Get() (string, error) {
+func (d *deviceImpl) Get() (ParseableRawData, error) {
 	response, exists := Mock_map[d.config.Device]
 	if !exists {
-		return "", fmt.Errorf("device not found: %s, available mock devices: %v", d.config.Device, keysToStr(Mock_map))
+		return nil, fmt.Errorf("device not found: %s, available mock devices: %v", d.config.Device, keysToStr(Mock_map))
 	}
 	log.Warnf("not using a real device, mocking %s", d.config.Device)
 
@@ -43,7 +43,7 @@ func (d *deviceImpl) Get() (string, error) {
 		time.Sleep(d.config.ResponseDelay)
 	}
 
-	return response, nil
+	return RawDataFromString(response), nil
 }
 
 func keysToStr[T any](m map[string]T) string {

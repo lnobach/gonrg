@@ -48,7 +48,7 @@ func deviceSetDefaults(c *DeviceConfig) error {
 
 }
 
-func (d *deviceImpl) Get() (string, error) {
+func (d *deviceImpl) Get() (ParseableRawData, error) {
 
 	sermode := &serial.Mode{
 		BaudRate: d.config.BaudRate,
@@ -65,12 +65,12 @@ func (d *deviceImpl) Get() (string, error) {
 
 	port, err := serial.Open(d.config.Device, sermode)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer util.LogDeferWarn(port.Close)
 	err = port.SetReadTimeout(d.config.D0Timeout)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if d.config.DeviceOptions.HasOption("0preamble") {
@@ -79,11 +79,11 @@ func (d *deviceImpl) Get() (string, error) {
 
 		_, err = port.Write([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		_, err = port.Write([]byte("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 	}
@@ -91,11 +91,11 @@ func (d *deviceImpl) Get() (string, error) {
 	log.Debugf("sending request code...")
 	_, err = port.Write([]byte("/?!\x0D\x0A"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	err = port.Drain()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if d.config.ResponseDelay > 0 {
@@ -132,13 +132,14 @@ func (d *deviceImpl) Get() (string, error) {
 			}
 		}
 	}
+	result := RawDataFromString(response)
 	if err := scanner.Err(); err != nil {
-		return response, err
+		return result, err
 	}
 	log.Debugf("completed reading of response. Total time for d0 transaction: %s",
 		time.Since(start))
 
-	return response, nil
+	return result, nil
 
 }
 

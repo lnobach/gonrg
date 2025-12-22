@@ -7,8 +7,8 @@ For this to work, you need a gadget to connect to the optical
 D0 interface of your meter, which you preferably connect to your host via USB,
 but any (tunneled) serial connection should also be fine.
 
-Text-based D0 OBIS is currently supported (which most digital meters in Germany use),
-**but no SML yet**, because I don't have a device at hand to test with.
+Text-based D0 OBIS is currently supported (which most digital meters in Germany use).
+For newer meters, SML mode is supported (`--sml`).
 
 The binary can be used as a standalone CLI tool, as a JSON/REST server serving
 OBIS meter data, or as a client to connect with a remote gonrg server.
@@ -28,8 +28,7 @@ please open a pull request that extends the list.
 
 ## TODOs
 
-- **CI/CD, autobuilds and binary releases on GitHub**
-- Server OpenAPI specification
+- **Server OpenAPI specification**
 - Client code
 - SML and HAN interface support (I don't have any devices available to test with)
 
@@ -92,7 +91,7 @@ Exact Key       Simple Key  Name         Value           Unit
 The same info can be obtained in JSON with the `--json` flag appended:
 
 ```
-john@doe:~/foo$ gonrg --device /dev/ttyUSB1   
+john@doe:~/foo$ gonrg --device /dev/ttyUSB1 --json
 {
   "measurementTime": "2025-12-15T21:10:29.730101646+01:00",
   "deviceID": "EBZ5DD12345ETA_104",

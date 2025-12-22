@@ -56,8 +56,8 @@ func (e *OBISEntry) PrettyValue(unit bool) string {
 		num = "0" + num
 	}
 
-	if e.ValueScale > 0 {
-		scaleRev := len(num) - e.ValueScale
+	if e.ValueScale < 0 {
+		scaleRev := len(num) + e.ValueScale
 		num = num[:scaleRev] + "." + num[scaleRev:]
 	}
 	if unit && e.Unit != "" {
