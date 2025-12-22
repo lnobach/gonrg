@@ -127,7 +127,35 @@ func (s *obisscanner) parseOBISList(list *TLV) error {
 }
 
 func (s *obisscanner) parseDeviceID(serverID []byte) (string, error) {
-	return util.BytesToPrintableString(serverID), nil
+
+	// serverid parsing is completely based on analysis of the raw data
+	// of different meters since no docs seem available.
+
+	if len(serverID) < 1 {
+		return "", nil
+	}
+
+	firstbyte := serverID[0]
+
+	if firstbyte > 0x07 && firstbyte < 0x0f && len(serverID) >= 5 {
+		prenum := serverID[1]
+		vendorslug := util.BytesToPrintableString(serverID[2:5])
+		serial := util.Uint64FromVarByteArray(serverID[5:])
+		return fmt.Sprintf("%d%s%010d", prenum, vendorslug, serial), nil
+	}
+
+	if firstbyte <= 0x07 && len(serverID) >= 4 {
+		vendorslug := util.BytesToPrintableString(serverID[1:4])
+		serial := util.Uint64FromVarByteArray(serverID[5:])
+		return fmt.Sprintf("%s%010d", vendorslug, serial), nil
+	}
+
+	if util.AllCharsPrintable(serverID) {
+		return string(serverID), nil
+	}
+
+	return fmt.Sprintf("%x", serverID), nil
+
 }
 
 func isGetListResponse(tlv *TLV) bool {
@@ -141,8 +169,8 @@ func isGetListResponse(tlv *TLV) bool {
 	if tlv_type.Type != TLVType_Unsigned {
 		return false
 	}
-	return tlv_type.Value[0] == 0x07 &&
-		tlv_type.Value[1] == 0x01
+	return tlv_type.Value[len(tlv_type.Value)-2] == 0x07 &&
+		tlv_type.Value[len(tlv_type.Value)-1] == 0x01
 }
 
 func RawDataFromBytes(raw []byte) *RawData {

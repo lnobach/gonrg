@@ -19,6 +19,7 @@ type ServerConfig struct {
 
 type ServedMeterConfig struct {
 	Name            string
+	SML             bool
 	Device          d0.DeviceConfig
 	Parser          d0.ParseConfig
 	RateLimitMaxAge time.Duration

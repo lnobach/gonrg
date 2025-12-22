@@ -3,6 +3,7 @@ package sml
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 
@@ -45,7 +46,11 @@ func TLVsFromBuf(bufr *bufio.Reader) ([]*TLV, error) {
 				log.WithError(rerr).Warnf("could not read remainder of sml packet")
 				return tlvs, err
 			}
-			log.Debugf("remainder of msg is %x", remainder)
+			log.Debugf("remainder of msg is '%x'", remainder)
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				log.Debug("eof reached while still parsing tlvs, some devices do that, check if all data is available")
+				err = nil
+			}
 			return tlvs, err
 		}
 	}

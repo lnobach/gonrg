@@ -1,11 +1,10 @@
 package sml
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 
 	"github.com/lnobach/gonrg/obis"
+	"github.com/lnobach/gonrg/util"
 )
 
 var (
@@ -20,7 +19,6 @@ func initMap() {
 }
 
 type SMLUnit interface {
-	AsString() string
 	SetValue(e *obis.OBISEntry, scale int, raw []byte) error
 }
 
@@ -44,12 +42,9 @@ type defaultunit struct {
 	name string
 }
 
-func (d *defaultunit) AsString() string {
-	return d.name
-}
-
 func (d *defaultunit) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
 	e.ValueText = fmt.Sprintf("%x", raw)
+	e.Unit = d.name
 	return nil
 }
 
@@ -58,26 +53,16 @@ type unit_uint32 struct {
 	name string
 }
 
-func (d *unit_uint32) AsString() string {
-	return d.name
-}
-
 func (d *unit_uint32) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
-	if len(raw) < 8 {
-		raw = append(bytes.Repeat([]byte{0x00}, 8-len(raw)), raw...)
-	}
-	e.ValueNum = int64(binary.BigEndian.Uint64(raw))
+	e.ValueNum = int64(util.Uint64FromVarByteArray(raw))
 	e.ValueScale = scale
+	e.Unit = d.name
 	return nil
 }
 
 // === Integer Unit / 1000
 type unit_uint32_1000 struct {
 	unit_uint32
-}
-
-func (d *unit_uint32_1000) AsString() string {
-	return d.name
 }
 
 func (d *unit_uint32_1000) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {

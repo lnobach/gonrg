@@ -30,7 +30,7 @@ please open a pull request that extends the list.
 
 - **Server OpenAPI specification**
 - Client code
-- SML and HAN interface support (I don't have any devices available to test with)
+- HAN interface support (I don't have any devices available to test with)
 
 ## How to build
 

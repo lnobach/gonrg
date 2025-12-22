@@ -13,3 +13,12 @@ func BytesToPrintableString(b []byte) string {
 
 	return string(result)
 }
+
+func AllCharsPrintable(b []byte) bool {
+	for _, v := range b {
+		if v < 32 || v > 126 {
+			return false
+		}
+	}
+	return true
+}
