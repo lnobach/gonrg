@@ -147,7 +147,6 @@ func (s *Scheduler) fetchValueUnsafe() (*obis.OBISMappedResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get meter raw data from device: %w", err)
 	}
-	log.WithField("raw", rawVal).Debug("raw data received")
 	result, err := s.parser.GetOBISMap(rawVal, now)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse raw data obtained from meter: %w", err)

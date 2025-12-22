@@ -132,6 +132,7 @@ func (d *deviceImpl) Get() (ParseableRawData, error) {
 			}
 		}
 	}
+	log.WithField("raw", response).Debugf("Raw data from device %s", d.config.Device)
 	result := RawDataFromString(response)
 	if err := scanner.Err(); err != nil {
 		return result, err

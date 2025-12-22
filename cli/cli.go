@@ -26,8 +26,8 @@ var (
 	dev_opts      *[]string
 	rootCmd       = &cobra.Command{
 		Use:     "gonrg",
-		Short:   "\u26A1\uFE0F gonrg - a simple D0 OBIS energy meter CLI tool or server.",
-		Long:    "\u26A1\uFE0F gonrg - a simple D0 OBIS energy meter CLI tool or server.",
+		Short:   "\u26A1\uFE0F gonrg - a simple D0 OBIS/SML energy meter CLI tool or server.",
+		Long:    "\u26A1\uFE0F gonrg - a simple D0 OBIS/SML energy meter CLI tool or server.",
 		Version: version.GonrgVersion,
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -60,8 +60,6 @@ var (
 			if err != nil {
 				panic(err)
 			}
-
-			log.WithField("raw", rawdata).Debugf("Raw data from device %s", device)
 
 			p, err := d0.NewParser(d0.ParseConfig{
 				StrictMode: strictMode,
