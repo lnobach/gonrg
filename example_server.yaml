@@ -55,3 +55,10 @@ meters:
     # is used, otherwise a per-request fetch (with optional ratelimitmaxage)
     # is done.
     cron: "0/10 * * * * ?"
+  - name: smartmeter1
+    # SML mode is now supported. Set this to true if gonrg shall expect SML
+    # data from the device instead of polling for plain OBIS data.
+    sml: true
+    device:
+      device: /dev/ttyUSB3
+    cron: "0/10 * * * * ?"

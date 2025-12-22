@@ -1,19 +1,21 @@
-# ⚡️ gonrg - Energy Smart Meter Reader
+# ⚡️ gonrg - Check And Serve Smart Meter Info
 
 CLI tool, server, and Go library to connect to the optical D0 interfaces of
-power meters and gather OBIS data (e.g. power consumption).
+power meters and gather OBIS values (e.g. power consumption).
 
 For this to work, you need a gadget to connect to the optical
 D0 interface of your meter, which you preferably connect to your host via USB,
 but any (tunneled) serial connection should also be fine.
 
-Text-based D0 OBIS is currently supported (which most digital meters in Germany use),
-**but no SML yet**, because I don't have a device at hand to test with.
+Text-based D0 OBIS is currently supported (which most digital meters in Germany use).
+For newer meters, SML mode is supported (`--sml`).
 
 The binary can be used as a standalone CLI tool, as a JSON/REST server serving
 OBIS meter data, or as a client to connect with a remote gonrg server.
 
 ## Tested and compatible meters
+
+The following meters have been verified to be directly compatible:
 
 - **eBZ DD3**, many variants
   - Power meter, consumption and production (two-direction).
@@ -22,16 +24,22 @@ OBIS meter data, or as a client to connect with a remote gonrg server.
   - District heating meter
   - Required params: `--baudrate 300 --baudrate-read 2400 --device-option 0preamble --response-delay 300ms`
   - Only poll daily or hourly because the device runs on battery.
+- **Iskra MT631**
+  - Uses SML
+  - Required params: `--sml`
+
+SML parsing has furthermore been verified [with data from various devices](https://github.com/devZer0/libsml-testing/).
+I was able to implement it thanks to [this awesome deep-dive from Matthias Röckl (in German)](https://medium.com/@mroeckl/h%C3%B6re-was-dein-stromz%C3%A4hler-dir-zu-sagen-hat-smart-message-language-de18556fc4b4).
 
 gonrg is probably compatible with many other devices. If you can verify compatibility,
 please open a pull request that extends the list.
 
 ## TODOs
 
-- **CI/CD, autobuilds and binary releases on GitHub**
-- Server OpenAPI specification
+- **Server OpenAPI specification**
+- Library How-To
 - Client code
-- SML and HAN interface support (I don't have any devices available to test with)
+- HAN interface support (I don't have any devices available to test with)
 
 ## How to build
 
@@ -43,7 +51,7 @@ Just hit `make` to obtain a statically linked binary in the project root.
 
 ```
 john@doe:~/foo$ gonrg --help
-⚡️ gonrg - a simple D0 OBIS energy meter CLI tool or server.
+⚡️ gonrg - a simple D0 OBIS/SML energy meter CLI tool or server.
 
 Usage:
   gonrg [flags]
@@ -56,14 +64,15 @@ Available Commands:
 
 Flags:
   -b, --baudrate int              baud rate, 0 means choose best option
-  -r, --baudrate-read int         baud rate for reading, 0 means same like baudrate
+  -r, --baudrate-read int         (non-SML) baud rate for reading, 0 means same like baudrate
   -t, --d0-timeout duration       read timeout of the d0 serial connection
   -D, --debug                     set debug log level
   -d, --device string             device to read from (default "/dev/ttyUSB0")
   -o, --device-option strings     device option
   -h, --help                      help for gonrg
   -j, --json                      output json instead of pretty table
-  -l, --response-delay duration   wait before expecting response
+  -l, --response-delay duration   (non-SML) wait before expecting response
+  -s, --sml                       connect to an SML device rather than a plain OBIS device
   -S, --strict                    strict mode for parsing - fail fast
   -v, --version                   version for gonrg
 
@@ -92,7 +101,7 @@ Exact Key       Simple Key  Name         Value           Unit
 The same info can be obtained in JSON with the `--json` flag appended:
 
 ```
-john@doe:~/foo$ gonrg --device /dev/ttyUSB1   
+john@doe:~/foo$ gonrg --device /dev/ttyUSB1 --json
 {
   "measurementTime": "2025-12-15T21:10:29.730101646+01:00",
   "deviceID": "EBZ5DD12345ETA_104",

@@ -1,0 +1,3 @@
+[submodule "testdata/sml"]
+	path = testdata/sml
+	url = https://github.com/devZer0/libsml-testing

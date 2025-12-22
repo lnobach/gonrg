@@ -7,6 +7,7 @@ import (
 
 	"github.com/lnobach/gonrg/d0"
 	"github.com/lnobach/gonrg/obis"
+	"github.com/lnobach/gonrg/sml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
@@ -23,7 +24,13 @@ type Scheduler struct {
 
 func NewScheduler(config *ServedMeterConfig) (*Scheduler, error) {
 
-	device, err := d0.NewDevice(config.Device)
+	var err error
+	var device d0.Device
+	if config.SML {
+		device, err = sml.NewDevice(config.Device)
+	} else {
+		device, err = d0.NewDevice(config.Device)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not configure device: %w", err)
 	}
@@ -140,7 +147,6 @@ func (s *Scheduler) fetchValueUnsafe() (*obis.OBISMappedResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get meter raw data from device: %w", err)
 	}
-	log.WithField("raw", rawVal).Debug("raw data received")
 	result, err := s.parser.GetOBISMap(rawVal, now)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse raw data obtained from meter: %w", err)

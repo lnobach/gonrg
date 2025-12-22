@@ -9,10 +9,14 @@ import (
 type Device interface {
 
 	// Fetches raw data over the D0 interface
-	Get() (string, error)
+	Get() (ParseableRawData, error)
+}
+
+type ParseableRawData interface {
+	ParseObis(cfg *ParseConfig, foundSet func(*obis.OBISEntry) error) (string, error)
 }
 
 type Parser interface {
-	GetOBISMap(rawdata string, measurementTime time.Time) (*obis.OBISMappedResult, error)
-	GetOBISList(rawdata string, measurementTime time.Time) (*obis.OBISListResult, error)
+	GetOBISMap(data ParseableRawData, measurementTime time.Time) (*obis.OBISMappedResult, error)
+	GetOBISList(data ParseableRawData, measurementTime time.Time) (*obis.OBISListResult, error)
 }
