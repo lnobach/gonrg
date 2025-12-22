@@ -1,4 +1,4 @@
-# ⚡️ gonrg - Check And Serve Smart Meter Information
+# ⚡️ gonrg - Check And Serve Smart Meter Info
 
 CLI tool, server, and Go library to connect to the optical D0 interfaces of
 power meters and gather OBIS values (e.g. power consumption).
