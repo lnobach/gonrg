@@ -12,6 +12,6 @@ func main() {
 	log.SetLevel(log.WarnLevel)
 	err := cli.Start()
 	if err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 }

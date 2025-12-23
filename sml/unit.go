@@ -14,8 +14,8 @@ var (
 func initMap() {
 	units = make([]SMLUnit, 256)
 
-	units[0x1e] = &unit_uint32_1000{unit_uint32{name: "kWh"}}
-	units[0x1b] = &unit_uint32{name: "W"}
+	units[0x1e] = &unit_uint64_1000{unit_uint64{name: "kWh"}}
+	units[0x1b] = &unit_int64{name: "W"}
 }
 
 type SMLUnit interface {
@@ -48,25 +48,37 @@ func (d *defaultunit) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
 	return nil
 }
 
-// === Integer Unit
-type unit_uint32 struct {
+// === Unsigned Integer Unit
+type unit_uint64 struct {
 	name string
 }
 
-func (d *unit_uint32) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
-	e.ValueNum = int64(util.Uint64FromVarByteArray(raw))
+func (d *unit_uint64) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
+	e.ValueNum = int64(util.BytesToUint64(raw))
 	e.ValueScale = scale
 	e.Unit = d.name
 	return nil
 }
 
-// === Integer Unit / 1000
-type unit_uint32_1000 struct {
-	unit_uint32
+// === Signed Integer Unit
+type unit_int64 struct {
+	name string
 }
 
-func (d *unit_uint32_1000) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
-	err := d.unit_uint32.SetValue(e, scale, raw)
+func (d *unit_int64) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
+	e.ValueNum = util.BytesToInt64(raw)
+	e.ValueScale = scale
+	e.Unit = d.name
+	return nil
+}
+
+// === Unsigned Integer Unit / 1000
+type unit_uint64_1000 struct {
+	unit_uint64
+}
+
+func (d *unit_uint64_1000) SetValue(e *obis.OBISEntry, scale int, raw []byte) error {
+	err := d.unit_uint64.SetValue(e, scale, raw)
 	e.ValueScale = e.ValueScale - 3
 	return err
 }

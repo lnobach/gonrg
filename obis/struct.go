@@ -1,8 +1,9 @@
 package obis
 
 import (
-	"fmt"
 	"time"
+
+	"github.com/lnobach/gonrg/util"
 )
 
 type OBISEntry struct {
@@ -46,20 +47,9 @@ func (e *OBISEntry) PrettyValue(unit bool) string {
 	if e.ValueNum == 0 && e.Unit == "" {
 		return "-"
 	}
-	num := fmt.Sprintf("%d", e.ValueNum)
 
-	for {
-		//nolint:staticcheck // won't run into loop
-		if e.ValueScale < len(num) {
-			break
-		}
-		num = "0" + num
-	}
+	num := util.DecimalScaleToString(e.ValueNum, e.ValueScale)
 
-	if e.ValueScale < 0 {
-		scaleRev := len(num) + e.ValueScale
-		num = num[:scaleRev] + "." + num[scaleRev:]
-	}
 	if unit && e.Unit != "" {
 		return num + " " + e.Unit
 	}
