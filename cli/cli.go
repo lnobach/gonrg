@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/lnobach/gonrg/d0"
@@ -30,7 +31,7 @@ var (
 		Long:    "\u26A1\uFE0F gonrg - a simple D0 OBIS/SML energy meter CLI tool or server.",
 		Version: version.GonrgVersion,
 
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 
 			setLogLevel()
 
@@ -52,25 +53,27 @@ var (
 				d, err = d0.NewDevice(cfg)
 			}
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("error creating device: %w", err)
 			}
 
 			mt := time.Now()
 			rawdata, err := d.Get()
 			if err != nil {
-				panic(err)
+				cmd.SilenceUsage = true
+				return fmt.Errorf("error retrieving data from device: %w", err)
 			}
 
 			p, err := d0.NewParser(d0.ParseConfig{
 				StrictMode: strictMode,
 			})
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("error creating parser: %w", err)
 			}
 
 			result, err := p.GetOBISList(rawdata, mt)
 			if err != nil {
-				panic(err)
+				cmd.SilenceUsage = true
+				return fmt.Errorf("error parsing data: %w", err)
 			}
 
 			if jsonOut {
@@ -78,7 +81,7 @@ var (
 			} else {
 				outtable.PrintTable(result)
 			}
-
+			return nil
 		},
 	}
 	config    string
@@ -87,23 +90,25 @@ var (
 		Short: "run in server mode given a config",
 		Long:  "run in server mode given a config",
 
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 
 			setLogLevel()
 
 			conf, err := server.ConfigFromFile(config)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("error reading configuration: %w", err)
 			}
 
 			s, err := server.NewServer(conf, debug)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("error creating server: %w", err)
 			}
 			err = s.ListenAndServe()
 			if err != nil {
-				panic(err)
+				cmd.SilenceUsage = true
+				return fmt.Errorf("error while serving: %w", err)
 			}
+			return nil
 		},
 	}
 )

@@ -77,7 +77,7 @@ func tlvFromBuf(r *bufio.Reader, depth int) (*TLV, error) {
 		Length: l,
 	}
 
-	if t == 7 { // list
+	if t == TLVType_List {
 		for i := 0; i < l; i++ {
 			subtlv, err := tlvFromBuf(r, depth+1)
 			if subtlv != nil {
@@ -107,7 +107,7 @@ func tlvFromBuf(r *bufio.Reader, depth int) (*TLV, error) {
 
 func (t *TLV) String() string {
 	var desc string
-	if t.Type == 7 {
+	if t.Type == TLVType_List {
 		desc = fmt.Sprintf("Type: %d, Length: %d", t.Type, t.Length)
 		for _, elem := range t.Elems {
 			desc = fmt.Sprintf("%s\n%s", desc, elem)

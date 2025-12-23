@@ -140,13 +140,13 @@ func (s *obisscanner) parseDeviceID(serverID []byte) (string, error) {
 	if firstbyte > 0x07 && firstbyte < 0x0f && len(serverID) >= 5 {
 		prenum := serverID[1]
 		vendorslug := util.BytesToPrintableString(serverID[2:5])
-		serial := util.Uint64FromVarByteArray(serverID[5:])
+		serial := util.BytesToUint64(serverID[5:])
 		return fmt.Sprintf("%d%s%010d", prenum, vendorslug, serial), nil
 	}
 
 	if firstbyte <= 0x07 && len(serverID) >= 4 {
 		vendorslug := util.BytesToPrintableString(serverID[1:4])
-		serial := util.Uint64FromVarByteArray(serverID[5:])
+		serial := util.BytesToUint64(serverID[5:])
 		return fmt.Sprintf("%s%010d", vendorslug, serial), nil
 	}
 
