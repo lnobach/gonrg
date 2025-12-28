@@ -40,6 +40,7 @@ please open a pull request that extends the list.
 
 - **Library How-To**
 - Server OpenAPI specification and Swagger UI
+- CLI Watch mode
 - Push mode via websocket
 - Client code
 - HAN interface support (I don't have any devices available to test with)
