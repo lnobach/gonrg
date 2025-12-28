@@ -1,3 +1,5 @@
+👉👉 **[For a quick how-to, visit my blog article about `gonrg`](https://nobach.net/powermeters/gonrg-serve-obis-data-smart-meters)** 👈👈
+
 # ⚡️ gonrg - Check And Serve Smart Meter Info
 
 CLI tool, server, and Go library to connect to the optical D0 interfaces of
