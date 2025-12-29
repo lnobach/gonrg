@@ -85,7 +85,7 @@ func (s *obisscanner) parseGetListResponseBody(body *TLV) error {
 		return errors.New("serverID is not of type octet-stream")
 	}
 
-	deviceID, err := s.parseDeviceID(serverid.Value)
+	deviceID, err := parseDeviceID(serverid.Value)
 	if err != nil {
 		return fmt.Errorf("error parsing device ID: %w", err)
 	}
@@ -126,7 +126,7 @@ func (s *obisscanner) parseOBISList(list *TLV) error {
 	return nil
 }
 
-func (s *obisscanner) parseDeviceID(serverID []byte) (string, error) {
+func parseDeviceID(serverID []byte) (string, error) {
 
 	// serverid parsing is completely based on analysis of the raw data
 	// of different meters since no docs seem available.

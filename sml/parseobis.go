@@ -23,7 +23,13 @@ func ParseOBISTLV(list *TLV, parseConfig *d0.ParseConfig) (*obis.OBISEntry, erro
 		return nil, fmt.Errorf("could not parse key: %w", err)
 	}
 
+	name := obis.GetFromCatalogue(exact)
+	if name == "" {
+		name = obis.GetFromCatalogue(simplified)
+	}
+
 	entry := &obis.OBISEntry{
+		Name:          name,
 		ExactKey:      exact,
 		SimplifiedKey: simplified,
 	}
@@ -58,7 +64,7 @@ func parseScale(tlv *TLV) int {
 
 func parseValue(entry *obis.OBISEntry, unitnum uint8, scale int, value *TLV) error {
 	unit := GetUnitByKey(unitnum)
-	err := unit.SetValue(entry, scale, value.Value)
+	err := unit.SetValue(entry, scale, value.Value, entry.SimplifiedKey)
 	if err != nil {
 		return err
 	}
