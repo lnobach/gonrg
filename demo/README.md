@@ -7,8 +7,8 @@ your client.
 
 ## Prepare
 
-First, edit `meter.html` and set the `apibase` constant to the
-gonrg server, e.g. `http://<your-gonrg-server>:8080`
+First, edit `meter.html` and set the `server-select` options
+values to your gonrg server(s), e.g. `http://<your-gonrg-server>:8080`.
 
 You cannot run `meter.html` from disk, because of CORS rules,
 you must host it somewhere first. For example, run a simple
