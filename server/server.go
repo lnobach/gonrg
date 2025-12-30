@@ -55,6 +55,10 @@ func (s *serverImpl) getWSUpgrader() *websocket.Upgrader {
 			if origin == "" {
 				return true
 			}
+			if len(s.config.AllowOrigins) > 0 &&
+				s.config.AllowOrigins[0] == "*" {
+				return true
+			}
 			return slices.Contains(s.config.AllowOrigins, origin)
 		},
 	}

@@ -34,6 +34,17 @@
   and will be updated live.
 </p>
 
+
+<label for="server-select">Server:</label>
+<select id="server-select">
+  <!-- ---------------
+  // Edit this to point to your gonrg server(s).
+  // Be sure to set alloworigin in gonrg to wherever this
+  // runs. -->
+  <option value="http://localhost:8080">My Local Meter Server</option>
+  <option value="http://cube:8123">My Local Meter Server 2</option>
+</select>
+
 <label for="source-select">Meter:</label>
 <select id="source-select">
   <!-- Filled by JavaScript -->
@@ -56,19 +67,14 @@
 
 <script>
 
-  // ---------------
-  // Edit this to point to your gonrg server.
-  // Be sure to set alloworigin in gonrg to wherever this
-  // runs.
-  const apibase = "http://cube:8123"
-  // ---------------
-
   const tableBody = document.querySelector("#data-table tbody");
+  const serverSelect = document.getElementById("server-select");
   const sourceSelect = document.getElementById("source-select");
   
   let dataMap = new Map(); // Keeps current state by ID
   let socket = null;
   let currentMeter = null;
+  let apibase = serverSelect.value
 
   // Render the entire table from dataMap
   function renderTable() {
@@ -90,6 +96,8 @@
     try {
       const response = await fetch(subUrl(apibase, `meter/${meter}`));
       const jsonData = await response.json();
+
+      dataMap.clear();
 
       jsonData.list.forEach(item => {
         dataMap.set(item.exactKey, item);
@@ -189,6 +197,20 @@
 
     return `${valFloat}`
   }
+
+  function changeServer(server) {
+    if (apibase === server) return;
+    apibase = server;
+    loadMeters();
+  }
+
+  serverSelect.addEventListener("change", (e) => {
+    changeServer(e.target.value);
+  });
+
+  sourceSelect.addEventListener("change", (e) => {
+    changeMeter(e.target.value);
+  });
 
   window.addEventListener("load", () => {
     loadMeters();

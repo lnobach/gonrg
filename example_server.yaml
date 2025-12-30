@@ -9,6 +9,8 @@ trustedproxies: []
 
 # If you use gonrg together with a web app, you must
 # set the web app's URL as an allowed origin.
+# Set to ["*"] for testing, but keep in mind this
+# can be very unsafe.
 alloworigins: [ "http://localhost:8081" ]
 
 meters:
