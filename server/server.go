@@ -48,8 +48,6 @@ func serverSetDefaults(_ *ServerConfig) error {
 
 func (s *serverImpl) getWSUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
-		ReadBufferSize:  4096,
-		WriteBufferSize: 4096,
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
 			if origin == "" {
@@ -112,6 +110,21 @@ func (s *serverImpl) getPushHandler(obisval bool) func(c *gin.Context) {
 			return
 		}
 		defer util.LogDeferWarn(conn.Close)
+
+		conn.SetReadLimit(1)
+
+		go func(c *websocket.Conn) {
+			for {
+				_, _, err := c.ReadMessage()
+				log.WithField("connid", connid).
+					Debug("received message from client, but not supposed to, dropping")
+				if err != nil {
+					log.WithField("connid", connid).WithError(err).
+						Debug("read channel closed")
+					return
+				}
+			}
+		}(conn)
 
 		meter := c.Param("meter")
 
