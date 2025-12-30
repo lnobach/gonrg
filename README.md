@@ -195,6 +195,10 @@ john@doe:~/foo$ curl http://server:8080/meter/power/1.8.0
 }
 ```
 
+## Web App Demo
+
+There is a [web app demo](./demo) available.
+
 ## Miscellaneous
 
 - If you encounter errors, try to append the `--debug` flag to see what is going on.
