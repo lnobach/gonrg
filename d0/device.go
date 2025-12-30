@@ -4,6 +4,7 @@ package d0
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -142,6 +143,10 @@ func (d *deviceImpl) Get() (ParseableRawData, error) {
 
 	return result, nil
 
+}
+
+func (d *deviceImpl) GetForever(ctx context.Context, rcv chan ParseableRawData) {
+	panic("GetForever unimplemented for plain D0")
 }
 
 type timeoutReader struct {

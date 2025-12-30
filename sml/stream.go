@@ -3,6 +3,7 @@ package sml
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 
 	log "github.com/sirupsen/logrus"
@@ -32,8 +33,37 @@ func GetNextRaw(r io.Reader) ([]byte, error) {
 
 }
 
+func GetForeverRaw(ctx context.Context, r io.Reader, rcv chan []byte) error {
+
+	bufr := bufio.NewReader(r)
+
+	_, err := readUntil(bufr, StartSeq)
+	if err != nil {
+		return err
+	}
+
+	for {
+
+		msg, err := readUntil(bufr, StartSeq)
+		if err != nil {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			log.WithError(ctx.Err()).Debugf("stopped raw data reading")
+			return nil
+		case rcv <- msg:
+		default:
+			log.Warn("read a new sml message but receiver can't keep up. Dropping message.")
+		}
+
+	}
+
+}
+
 func readUntil(r *bufio.Reader, seq []byte) ([]byte, error) {
-	var buf []byte
+	buf := make([]byte, 0, 256)
 	for {
 		s, err := r.ReadBytes(seq[len(seq)-1])
 		if err != nil {

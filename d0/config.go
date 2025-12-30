@@ -25,6 +25,9 @@ type DeviceConfig struct {
 
 	// Options chosen for the device, e.g. for compatibility with other meters.
 	DeviceOptions options.Options
+
+	// For continuous operations, time to wait until reconnect
+	ReconnectPause time.Duration
 }
 
 type ParseConfig struct {

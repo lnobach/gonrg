@@ -63,14 +63,14 @@ var (
 				return fmt.Errorf("error retrieving data from device: %w", err)
 			}
 
-			p, err := d0.NewParser(d0.ParseConfig{
+			pcfg := d0.ParseConfig{
 				StrictMode: strictMode,
-			})
+			}
 			if err != nil {
 				return fmt.Errorf("error creating parser: %w", err)
 			}
 
-			result, err := p.GetOBISList(rawdata, mt)
+			result, err := d0.ParseOBISList(&pcfg, rawdata, mt)
 			if err != nil {
 				cmd.SilenceUsage = true
 				return fmt.Errorf("error parsing data: %w", err)
