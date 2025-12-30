@@ -1,5 +1,7 @@
 package obis
 
+import "maps"
+
 func ListToMap(list *OBISListResult) *OBISMappedResult {
 
 	obismap_exact := make(OBISMap)
@@ -12,6 +14,8 @@ func ListToMap(list *OBISListResult) *OBISMappedResult {
 			obismap[e.Name] = e
 		}
 	}
+
+	maps.Copy(obismap, obismap_exact)
 
 	return &OBISMappedResult{DeviceID: list.DeviceID, MeasurementTime: list.MeasurementTime,
 		List: list.List, Map: obismap}
