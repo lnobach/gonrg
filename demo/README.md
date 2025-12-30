@@ -29,3 +29,28 @@ origin in your gonrg application. For this, add the server to the
 
 Open the html file `http://localhost:8081/meter.html` in your browser
 and enjoy.
+
+
+## Reverse proxy
+
+You can run gonrg behind a reverse proxy to enable authentication,
+enforce authorization, and provide encryption (TLS).
+
+Example Apache2 reverse proxy configuration:
+```
+<IfModule mod_ssl.c>
+    <VirtualHost _default_:443>
+        ServerAdmin webmaster@localhost
+
+        DocumentRoot /var/www/html
+
+        [ ... ]
+
+        ProxyPass "/meterapi/ws" "ws://internalserver:8123/ws"
+        ProxyPassReverse "/meterapi/ws" "ws://internalserver:8123/ws"
+        ProxyPass "/meterapi" "http://internalserver:8123"
+        ProxyPassReverse "/meterapi" "http://internalserver:8123"
+
+	</VirtualHost>
+</IfModule>
+```
