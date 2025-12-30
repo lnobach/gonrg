@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -52,14 +53,9 @@ func (s *serverImpl) getWSUpgrader() *websocket.Upgrader {
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
 			if origin == "" {
-				return false
+				return true
 			}
-			for _, o := range s.config.AllowOrigins {
-				if o == origin {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(s.config.AllowOrigins, origin)
 		},
 	}
 }
@@ -89,6 +85,7 @@ func (s *serverImpl) ListenAndServe() error {
 	if err != nil {
 		return fmt.Errorf("error setting trusted proxies: %w", err)
 	}
+	router.GET("/meters", s.getMeters)
 	router.GET("/meter/:meter", s.getMeter)
 	router.GET("/meter/:meter/:obiskey", s.getMeterValue)
 
@@ -179,6 +176,10 @@ func (s *serverImpl) getPushHandler(obisval bool) func(c *gin.Context) {
 		}
 
 	}
+}
+
+func (s *serverImpl) getMeters(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, util.KeysFromMap(s.meters))
 }
 
 func (s *serverImpl) getMeter(c *gin.Context) {

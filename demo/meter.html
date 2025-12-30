@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meter View</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 60%;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+
+<p>
+  Demonstration of how you can use gonrg to create a web
+  application. Select a meter from the selector below.
+  The table with the meter readings will be displayed
+  and will be updated live.
+</p>
+
+<label for="source-select">Meter:</label>
+<select id="source-select">
+  <!-- Filled by JavaScript -->
+</select>
+
+<h2>Meter Values</h2>
+
+<table id="data-table">
+  <thead>
+    <tr>
+      <th>Exact Key</th>
+      <th>Simple Key</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Filled by JavaScript -->
+  </tbody>
+</table>
+
+<script>
+
+  // ---------------
+  // Edit this to point to your gonrg server.
+  // Be sure to set alloworigin in gonrg to wherever this
+  // runs.
+  const apibase = "http://cube:8123"
+  // ---------------
+
+  const tableBody = document.querySelector("#data-table tbody");
+  const sourceSelect = document.getElementById("source-select");
+  
+  let dataMap = new Map(); // Keeps current state by ID
+  let socket = null;
+  let currentMeter = null;
+
+  // Render the entire table from dataMap
+  function renderTable() {
+    tableBody.innerHTML = "";
+    for (const item of dataMap.values()) {
+      const row = document.createElement("tr");
+      const value = prettyValue(item)
+      row.innerHTML = `
+        <td>${item.exactKey}</td>
+        <td>${item.simplifiedKey}</td>
+        <td>${value}</td>
+      `;
+      tableBody.appendChild(row);
+    }
+  }
+
+  // Initial HTTP GET request
+  async function loadInitialData(meter) {
+    try {
+      const response = await fetch(subUrl(apibase, `meter/${meter}`));
+      const jsonData = await response.json();
+
+      jsonData.list.forEach(item => {
+        dataMap.set(item.exactKey, item);
+      });
+
+      renderTable();
+    } catch (error) {
+      console.error("Failed to load initial data:", error);
+    }
+  }
+
+  // WebSocket setup
+  function setupWebSocket(meter) {
+    if (socket) {
+      socket.close();
+    }
+
+    socket = new WebSocket(subUrl(getWsUrl(apibase), `ws/meter/${meter}`));
+
+    socket.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      message.list.forEach(item => {
+        dataMap.set(item.exactKey, item);
+      });
+      renderTable();
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = () => {
+      console.log("WebSocket closed");
+    };
+  }
+
+  function subUrl(httpUrl, subpath) {
+    const url = new URL(httpUrl);
+    url.pathname = `${url.pathname}${subpath}`;
+    return url.toString();
+  }
+
+  function getWsUrl(httpUrl) {
+    const url = new URL(httpUrl);
+    if (url.protocol === "http:") {
+      url.protocol = "ws:";
+    } else if (url.protocol === "https:") {
+      url.protocol = "wss:";
+    } else {
+      throw new Error("URL must start with http:// or https://");
+    }
+    return url.toString();
+  }
+
+  async function changeMeter(meter) {
+    if (meter === currentMeter) return;
+
+    currentMeter = meter;
+    await loadInitialData(meter);
+    setupWebSocket(meter);
+  }
+
+  async function loadMeters() {
+    const response = await fetch(subUrl(apibase, "meters"));
+    const sources = await response.json();
+
+    sourceSelect.innerHTML = "";
+    sources.forEach(source => {
+      const option = document.createElement("option");
+      option.value = source;
+      option.textContent = source;
+      sourceSelect.appendChild(option);
+    });
+
+    if (sources.length > 0) {
+      changeMeter(sources[0]);
+    }
+  }
+
+  function prettyValue(item) {
+    if (item.valueText) {
+      return item.valueText
+    }
+
+    let valFloat = item.valueNum * 10 ** item.valueScale
+    if (item.valueScale < 0) {
+      valFloat = valFloat.toFixed(-item.valueScale)
+    }
+
+    if (item.unit) {
+      return `${valFloat} ${item.unit}`
+    }
+
+    return `${valFloat}`
+  }
+
+  window.addEventListener("load", () => {
+    loadMeters();
+  });
+</script>
+
+</body>
+</html>
