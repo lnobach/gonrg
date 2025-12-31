@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/lnobach/gonrg/d0"
 	"github.com/lnobach/gonrg/obis"
 	"github.com/lnobach/gonrg/sml"
+	"github.com/lnobach/gonrg/util"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,7 +20,7 @@ type Scheduler struct {
 	lock     sync.RWMutex // for value access and non-cron device access
 	cronlock sync.Mutex   // for device access only in cron mode
 	device   d0.Device
-	parser   d0.Parser
+	pusher   *Pusher
 	cr       *cron.Cron
 }
 
@@ -35,11 +37,6 @@ func NewScheduler(config *ServedMeterConfig) (*Scheduler, error) {
 		return nil, fmt.Errorf("could not configure device: %w", err)
 	}
 
-	parser, err := d0.NewParser(config.Parser)
-	if err != nil {
-		return nil, fmt.Errorf("could not configure parser: %w", err)
-	}
-
 	var cr *cron.Cron
 
 	if config.Cron != "" {
@@ -50,18 +47,29 @@ func NewScheduler(config *ServedMeterConfig) (*Scheduler, error) {
 	return &Scheduler{
 		config: config,
 		device: device,
-		parser: parser,
 		cr:     cr,
 	}, nil
 
 }
 
 func (s *Scheduler) Init() error {
+
+	if s.config.SML && s.cr == nil {
+		// continuous mode in sml
+		ctx := context.Background()
+
+		s.pusher = NewPusher(s)
+		go s.pusher.ParseAndPushForever(ctx, &s.config.Parser)
+		go s.device.GetForever(ctx, s.pusher.GetReceiver())
+		return nil
+	}
 	if s.cr == nil {
 		// init only for cron'ed meters
 		return nil
 	}
 	log.Debugf("initializing cron for meter %s and fetch first value...", s.config.Name)
+
+	s.pusher = NewPusher(s)
 
 	result, err := s.fetchValueSafe()
 	if err != nil {
@@ -78,7 +86,7 @@ func (s *Scheduler) Init() error {
 }
 
 func (s *Scheduler) GetValue() (*obis.OBISMappedResult, error) {
-	if s.cr != nil {
+	if s.config.SML || s.cr != nil {
 		// RLock slightly improves performance in the cron case
 		s.lock.RLock()
 		defer s.lock.RUnlock()
@@ -116,26 +124,25 @@ func (s *Scheduler) fetchValueCron() {
 	}
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	prev := s.lastVal
 	s.lastVal = result
 	if err != nil {
 		log.WithError(err).Errorf("error fetching value for meter %s, duration %s", s.config.Name, time.Since(start))
 	} else {
 		log.Debugf("fetched value for meter %s, duration %s", s.config.Name, time.Since(start))
 	}
+	if result == nil {
+		return
+	}
+	change := obis.GetChanged(prev.GetList(), result.GetList())
+	if change != nil {
+		s.pusher.NotifyChange(change)
+	}
 }
 
 func (s *Scheduler) fetchValueSafe() (result *obis.OBISMappedResult, err error) {
 	defer func() {
-		if pan := recover(); pan != nil {
-			switch x := pan.(type) {
-			case string:
-				err = fmt.Errorf("fetch panicked: %s", x)
-			case error:
-				err = fmt.Errorf("fetch panicked: %w", x)
-			default:
-				err = fmt.Errorf("fetch panicked: %v", x)
-			}
-		}
+		err = util.PanicToError(recover(), err)
 	}()
 	result, err = s.fetchValueUnsafe()
 	return
@@ -147,10 +154,18 @@ func (s *Scheduler) fetchValueUnsafe() (*obis.OBISMappedResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get meter raw data from device: %w", err)
 	}
-	result, err := s.parser.GetOBISMap(rawVal, now)
+	result, err := d0.ParseOBISList(&s.config.Parser, rawVal, now)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse raw data obtained from meter: %w", err)
 	}
 	log.Debug("successfully fetch new meter value")
-	return result, nil
+	return obis.ListToMap(result), nil
+}
+
+func (s *Scheduler) SetAndGetPrevious(result *obis.OBISMappedResult) *obis.OBISMappedResult {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	previous := s.lastVal
+	s.lastVal = result
+	return previous
 }

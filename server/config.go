@@ -12,6 +12,7 @@ import (
 type ServerConfig struct {
 	ListenAddr     string
 	TrustedProxies []string
+	AllowOrigins   []string
 
 	// Device to connect to
 	Meters []*ServedMeterConfig

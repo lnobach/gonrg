@@ -3,6 +3,7 @@
 package sml
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/lnobach/gonrg/d0"
 	"github.com/lnobach/gonrg/util"
+	log "github.com/sirupsen/logrus"
 	"go.bug.st/serial"
 )
 
@@ -41,13 +43,16 @@ func deviceSetDefaults(c *d0.DeviceConfig) error {
 		c.D0Timeout = 8 * time.Second
 	}
 
+	if c.ReconnectPause <= 0 {
+		c.ReconnectPause = 5 * time.Second
+	}
+
 	return nil
 
 }
 
-func (d *deviceImpl) Get() (d0.ParseableRawData, error) {
-
-	sermode := &serial.Mode{
+func (d *deviceImpl) getSerMode() *serial.Mode {
+	return &serial.Mode{
 		BaudRate: d.config.BaudRate,
 		DataBits: 8,
 		Parity:   serial.NoParity,
@@ -57,16 +62,31 @@ func (d *deviceImpl) Get() (d0.ParseableRawData, error) {
 			DTR: false,
 		},
 	}
+}
+
+func (d *deviceImpl) setupSerialPort() (serial.Port, error) {
+
+	sermode := d.getSerMode()
 
 	port, err := serial.Open(d.config.Device, sermode)
 	if err != nil {
 		return nil, err
 	}
-	defer util.LogDeferWarn(port.Close)
 	err = port.SetReadTimeout(8 * time.Second)
 	if err != nil {
 		return nil, err
 	}
+
+	return port, nil
+}
+
+func (d *deviceImpl) Get() (d0.ParseableRawData, error) {
+
+	port, err := d.setupSerialPort()
+	if err != nil {
+		return nil, err
+	}
+	defer util.LogDeferWarn(port.Close)
 
 	msg, err := GetNextRaw(port)
 	if err != nil {
@@ -75,6 +95,50 @@ func (d *deviceImpl) Get() (d0.ParseableRawData, error) {
 
 	return RawDataFromBytes(msg), nil
 
+}
+
+func (d *deviceImpl) GetForever(ctx context.Context, rcv chan d0.ParseableRawData) {
+
+	chRaw := make(chan []byte)
+
+	go func() {
+		for {
+			select {
+			case rcv <- RawDataFromBytes(<-chRaw):
+			case <-ctx.Done():
+				log.WithError(ctx.Err()).Debugf("stopped parseable data pipe")
+				return
+			}
+		}
+	}()
+
+	for {
+		err := d.getForeverUntilErr(ctx, chRaw)
+		if err == nil {
+			break
+		}
+		log.WithError(err).Errorf("error while trying to get from serial port, retrying in %s",
+			d.config.ReconnectPause)
+		time.Sleep(d.config.ReconnectPause)
+	}
+
+}
+
+func (d *deviceImpl) getForeverUntilErr(ctx context.Context, rcv chan []byte) (err error) {
+	defer func() {
+		err = util.PanicToError(recover(), err)
+	}()
+	port, err2 := d.setupSerialPort()
+	if err2 != nil {
+		err = fmt.Errorf("error while setting up serial port: %w", err2)
+		return
+	}
+	defer util.LogDeferWarn(port.Close)
+	err2 = GetForeverRaw(ctx, port, rcv)
+	if err2 != nil {
+		err = fmt.Errorf("error while getting from serial port: %w", err2)
+	}
+	return
 }
 
 type timeoutReader struct {

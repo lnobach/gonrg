@@ -57,6 +57,9 @@ func (e *OBISEntry) PrettyValue(unit bool) string {
 }
 
 func (m *OBISMappedResult) GetList() *OBISListResult {
+	if m == nil {
+		return nil
+	}
 	return &OBISListResult{
 		DeviceID:        m.DeviceID,
 		List:            m.List,

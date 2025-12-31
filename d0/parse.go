@@ -3,7 +3,6 @@ package d0
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,54 +12,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type parserImpl struct {
-	config *ParseConfig
-}
-
-func NewParser(config ParseConfig) (Parser, error) {
-	c := &config
-	err := parseSetDefaults(c)
-	if err != nil {
-		return nil, fmt.Errorf("failure setting config: %w", err)
-	}
-	return parserImpl{config: c}, nil
-}
-
-func parseSetDefaults(_ *ParseConfig) error {
-	return nil
-}
-
-func (p parserImpl) GetOBISMap(data ParseableRawData, measurementTime time.Time) (*obis.OBISMappedResult, error) {
-
-	obismap_exact := make(obis.OBISMap)
-	obismap := make(obis.OBISMap)
-	obislist := make(obis.OBISList, 0, 20)
-
-	deviceid, err := data.ParseObis(p.config, func(e *obis.OBISEntry) error {
-		obismap_exact[e.ExactKey] = e
-		obismap[e.SimplifiedKey] = e
-		if e.Name != "" {
-			obismap[e.Name] = e
-		}
-		obislist = append(obislist, e)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error parsing obis data: %w", err)
-	}
-
-	maps.Copy(obismap, obismap_exact)
-
-	return &obis.OBISMappedResult{DeviceID: deviceid, MeasurementTime: measurementTime,
-		List: obislist, Map: obismap}, nil
-
-}
-
-func (p parserImpl) GetOBISList(data ParseableRawData, measurementTime time.Time) (*obis.OBISListResult, error) {
+func ParseOBISList(config *ParseConfig, data ParseableRawData, measurementTime time.Time) (*obis.OBISListResult, error) {
 
 	obislist := make(obis.OBISList, 0, 20)
 
-	deviceid, err := data.ParseObis(p.config, func(e *obis.OBISEntry) error {
+	deviceid, err := data.ParseObis(config, func(e *obis.OBISEntry) error {
 		obislist = append(obislist, e)
 		return nil
 	})

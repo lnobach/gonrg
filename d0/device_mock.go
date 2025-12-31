@@ -3,6 +3,7 @@
 package d0
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -44,6 +45,10 @@ func (d *deviceImpl) Get() (ParseableRawData, error) {
 	}
 
 	return RawDataFromString(response), nil
+}
+
+func (d *deviceImpl) GetForever(ctx context.Context, rcv chan ParseableRawData) {
+	panic("GetForever unimplemented for plain D0")
 }
 
 func keysToStr[T any](m map[string]T) string {
