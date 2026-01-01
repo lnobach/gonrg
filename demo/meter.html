@@ -55,7 +55,7 @@
   <!-- Filled by JavaScript -->
 </select>
 
-<p id="warnmsg" style="display: none">Lorem Ipsum</p>
+<p id="warnmsg" style="display: none"></p>
 
 <h2>Meter Values</h2>
 
@@ -104,6 +104,7 @@
 
   function msg(message) {
     if (message === "") {
+      warnmsg.textContent = ""
       warnmsg.style.display = "none"
       return
     }
