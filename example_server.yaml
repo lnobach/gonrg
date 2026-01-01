@@ -11,6 +11,11 @@ trustedproxies: []
 # set the web app's URL as an allowed origin.
 # Set to ["*"] for testing, but keep in mind this
 # can be very unsafe.
+# If alloworigins is not set or empty, the server
+# does not handle CORS at all (browsers may reject
+# access then), but for Websockets, a server-side
+# check does not permit other origins than the
+# Host header.
 alloworigins: [ "http://localhost:8081" ]
 
 meters:

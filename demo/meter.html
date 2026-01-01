@@ -8,6 +8,11 @@
       font-family: Arial, sans-serif;
     }
 
+    #warnmsg {
+      background-color: #ff6666;
+      padding: 5px;
+    }
+
     table {
       border-collapse: collapse;
       width: 60%;
@@ -45,10 +50,12 @@
   <option value="http://otherserver:8123">My Local Meter Server 2</option>
 </select>
 
-<label for="source-select">Meter:</label>
-<select id="source-select">
+<label for="meter-select">Meter:</label>
+<select id="meter-select">
   <!-- Filled by JavaScript -->
 </select>
+
+<p id="warnmsg" style="display: none"></p>
 
 <h2>Meter Values</h2>
 
@@ -57,6 +64,7 @@
     <tr>
       <th>Exact Key</th>
       <th>Simple Key</th>
+      <th>Name</th>
       <th>Value</th>
     </tr>
   </thead>
@@ -69,7 +77,9 @@
 
   const tableBody = document.querySelector("#data-table tbody");
   const serverSelect = document.getElementById("server-select");
-  const sourceSelect = document.getElementById("source-select");
+  const meterSelect = document.getElementById("meter-select");
+  const warnmsg = document.getElementById("warnmsg");
+  const reconnectTime = 10000
   
   let dataMap = new Map(); // Keeps current state by ID
   let socket = null;
@@ -85,10 +95,21 @@
       row.innerHTML = `
         <td>${item.exactKey}</td>
         <td>${item.simplifiedKey}</td>
+        <td>${item.name}</td>
         <td>${value}</td>
       `;
       tableBody.appendChild(row);
     }
+  }
+
+  function msg(message) {
+    if (message === "") {
+      warnmsg.textContent = ""
+      warnmsg.style.display = "none"
+      return
+    }
+    warnmsg.textContent = message
+    warnmsg.style.display = "block"
   }
 
   // Initial HTTP GET request
@@ -104,20 +125,27 @@
       });
 
       renderTable();
+      msg("")
     } catch (error) {
       console.error("Failed to load initial data:", error);
+      msg("failed to load initial data, is the server running?")
     }
   }
 
-  // WebSocket setup
   function setupWebSocket(meter) {
     if (socket) {
       socket.close();
     }
+    setupWebSocketRaw(meter)
+  }
+
+  // WebSocket setup
+  function setupWebSocketRaw(meter) {
 
     socket = new WebSocket(subUrl(getWsUrl(apibase), `ws/meter/${meter}`));
 
     socket.onopen = () => {
+      msg("")
       console.log("WebSocket connected");
     };
 
@@ -130,11 +158,19 @@
     };
 
     socket.onerror = (error) => {
+      msg("WebSocket error, data may not be accurate")
       console.error("WebSocket error:", error);
     };
 
     socket.onclose = () => {
-      console.log("WebSocket closed");
+      if (meter != currentMeter) {
+        console.log("WebSocket closed because of meter change.");
+        return
+      }
+      console.log("WebSocket closed, will reconnect after some time...");
+      setTimeout(function() {
+        if (meter == currentMeter) setupWebSocketRaw(meter)
+      }, reconnectTime);
     };
   }
 
@@ -165,19 +201,25 @@
   }
 
   async function loadMeters() {
-    const response = await fetch(subUrl(apibase, "meters"));
-    const sources = await response.json();
+    try {
+      const response = await fetch(subUrl(apibase, "meters"));
+      const sources = await response.json();
 
-    sourceSelect.innerHTML = "";
-    sources.forEach(source => {
-      const option = document.createElement("option");
-      option.value = source;
-      option.textContent = source;
-      sourceSelect.appendChild(option);
-    });
+      meterSelect.innerHTML = "";
+      sources.forEach(source => {
+        const option = document.createElement("option");
+        option.value = source;
+        option.textContent = source;
+        meterSelect.appendChild(option);
+      });
 
-    if (sources.length > 0) {
-      changeMeter(sources[0]);
+      if (sources.length > 0) {
+        changeMeter(sources[0]);
+      }
+
+    } catch (error) {
+      msg("failed to load meters, is the server running?")
+      console.error("error loading meters:", error);
     }
   }
 
@@ -208,7 +250,7 @@
     changeServer(e.target.value);
   });
 
-  sourceSelect.addEventListener("change", (e) => {
+  meterSelect.addEventListener("change", (e) => {
     changeMeter(e.target.value);
   });
 
