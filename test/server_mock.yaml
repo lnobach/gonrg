@@ -1,6 +1,6 @@
 listenaddr: 127.0.0.1:8080
 trustedproxies: []
-alloworigins: []
+alloworigins: ["*"]
 meters:
   - name: mockebz1
     device:
