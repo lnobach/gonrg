@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -46,22 +45,6 @@ func serverSetDefaults(_ *ServerConfig) error {
 	return nil
 }
 
-func (s *serverImpl) getWSUpgrader() *websocket.Upgrader {
-	return &websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			origin := r.Header.Get("Origin")
-			if origin == "" {
-				return true
-			}
-			if len(s.config.AllowOrigins) > 0 &&
-				s.config.AllowOrigins[0] == "*" {
-				return true
-			}
-			return slices.Contains(s.config.AllowOrigins, origin)
-		},
-	}
-}
-
 func (s *serverImpl) ListenAndServe() error {
 	log.Infof("%s server, version %s", version.GonrgName, version.GonrgVersion)
 
@@ -79,9 +62,12 @@ func (s *serverImpl) ListenAndServe() error {
 	}
 	router := gin.Default()
 
-	corscfg := cors.DefaultConfig()
-	corscfg.AllowOrigins = s.config.AllowOrigins
-	router.Use(cors.New(corscfg))
+	if len(s.config.AllowOrigins) > 0 {
+		corscfg := cors.DefaultConfig()
+		corscfg.AllowOrigins = s.config.AllowOrigins
+		corscfg.AllowMethods = []string{"GET"}
+		router.Use(cors.New(corscfg))
+	}
 
 	err := router.SetTrustedProxies(s.config.TrustedProxies)
 	if err != nil {
@@ -103,7 +89,13 @@ func (s *serverImpl) getPushHandler(obisval bool) func(c *gin.Context) {
 
 		connid := s.newSessionID(c)
 
-		conn, err := s.getWSUpgrader().Upgrade(c.Writer, c.Request, nil)
+		upgr := &websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return util.CorsWsIsOriginAllowed(r, s.config.AllowOrigins)
+			},
+		}
+
+		conn, err := upgr.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			log.WithField("connid", connid).WithError(err).
 				Debug("could not upgrade websocket session")
