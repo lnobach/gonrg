@@ -193,6 +193,59 @@ john@doe:~/foo$ curl http://server:8080/meter/power/1.8.0
     }
 }
 ```
+## Go Library - Example
+
+Documentation of the functions and types will be improved very soon!
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/lnobach/gonrg/d0"
+	"github.com/lnobach/gonrg/obis"
+)
+
+func main() {
+
+	// Create a new D0 device to read from.
+	// If you have a SML device, just use
+	// sml.NewDevice(d0.DeviceConfig{..})
+	d, err := d0.NewDevice(d0.DeviceConfig{
+		Device:   "/dev/ttyUSB0",
+		BaudRate: 9600,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// Read the raw data from the device
+	rawdata, err := d.Get()
+	if err != nil {
+		panic(err)
+	}
+
+	// Parse the data
+	obisdata, err := d0.ParseOBISList(
+		&d0.ParseConfig{},
+		rawdata,
+		time.Now(),
+	)
+
+	// Create a map for faster key-based access
+	obismap := obis.ListToMap(obisdata)
+	e, exists := obismap.Map["1.8.0"] // power consumption
+	if !exists {
+		panic("no power consumption in data")
+	}
+
+	// Output the current power consumption to stdout
+	fmt.Printf("Power consumption: %s\n", e.PrettyValue(true))
+
+}
+```
+
 
 ## Web App Demo
 

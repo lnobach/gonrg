@@ -14,17 +14,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Scheduler struct {
+const (
+	MaxJobsElapsedTime = 20 * time.Second
+)
+
+type scheduler struct {
 	config   *ServedMeterConfig
 	lastVal  *obis.OBISMappedResult
 	lock     sync.RWMutex // for value access and non-cron device access
 	cronlock sync.Mutex   // for device access only in cron mode
 	device   d0.Device
-	pusher   *Pusher
+	pusher   *pusher
 	cr       *cron.Cron
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
-func NewScheduler(config *ServedMeterConfig) (*Scheduler, error) {
+func newScheduler(config *ServedMeterConfig) (*scheduler, error) {
 
 	var err error
 	var device d0.Device
@@ -44,7 +50,7 @@ func NewScheduler(config *ServedMeterConfig) (*Scheduler, error) {
 			cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)))
 	}
 
-	return &Scheduler{
+	return &scheduler{
 		config: config,
 		device: device,
 		cr:     cr,
@@ -52,15 +58,16 @@ func NewScheduler(config *ServedMeterConfig) (*Scheduler, error) {
 
 }
 
-func (s *Scheduler) Init() error {
+func (s *scheduler) start() error {
+
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	if s.config.SML && s.cr == nil {
 		// continuous mode in sml
-		ctx := context.Background()
 
-		s.pusher = NewPusher(s)
-		go s.pusher.ParseAndPushForever(ctx, &s.config.Parser)
-		go s.device.GetForever(ctx, s.pusher.GetReceiver())
+		s.pusher = newPusher(s)
+		go s.pusher.parseAndPushForever(s.ctx, &s.config.Parser)
+		go s.device.GetForever(s.ctx, s.pusher.getReceiver())
 		return nil
 	}
 	if s.cr == nil {
@@ -69,7 +76,7 @@ func (s *Scheduler) Init() error {
 	}
 	log.Debugf("initializing cron for meter %s and fetch first value...", s.config.Name)
 
-	s.pusher = NewPusher(s)
+	s.pusher = newPusher(s)
 
 	result, err := s.fetchValueSafe()
 	if err != nil {
@@ -85,7 +92,21 @@ func (s *Scheduler) Init() error {
 	return nil
 }
 
-func (s *Scheduler) GetValue() (*obis.OBISMappedResult, error) {
+func (s *scheduler) stop(stopctx context.Context) error {
+	s.cancel()
+	if s.cr != nil {
+		jobs := s.cr.Stop()
+		select {
+		case <-jobs.Done():
+			return nil
+		case <-stopctx.Done():
+			return fmt.Errorf("timed out while waiting for running jobs: %w", stopctx.Err())
+		}
+	}
+	return nil
+}
+
+func (s *scheduler) getValue() (*obis.OBISMappedResult, error) {
 	if s.config.SML || s.cr != nil {
 		// RLock slightly improves performance in the cron case
 		s.lock.RLock()
@@ -111,7 +132,7 @@ func (s *Scheduler) GetValue() (*obis.OBISMappedResult, error) {
 	return s.lastVal, nil
 }
 
-func (s *Scheduler) fetchValueCron() {
+func (s *scheduler) fetchValueCron() {
 	if !s.cronlock.TryLock() {
 		log.Warnf("will not run fetch for meter %s because the previous job is still running", s.config.Name)
 		return
@@ -136,11 +157,11 @@ func (s *Scheduler) fetchValueCron() {
 	}
 	change := obis.GetChanged(prev.GetList(), result.GetList())
 	if change != nil {
-		s.pusher.NotifyChange(change)
+		s.pusher.notifyChange(change)
 	}
 }
 
-func (s *Scheduler) fetchValueSafe() (result *obis.OBISMappedResult, err error) {
+func (s *scheduler) fetchValueSafe() (result *obis.OBISMappedResult, err error) {
 	defer func() {
 		err = util.PanicToError(recover(), err)
 	}()
@@ -148,7 +169,7 @@ func (s *Scheduler) fetchValueSafe() (result *obis.OBISMappedResult, err error) 
 	return
 }
 
-func (s *Scheduler) fetchValueUnsafe() (*obis.OBISMappedResult, error) {
+func (s *scheduler) fetchValueUnsafe() (*obis.OBISMappedResult, error) {
 	rawVal, err := s.device.Get()
 	now := time.Now()
 	if err != nil {
@@ -162,7 +183,7 @@ func (s *Scheduler) fetchValueUnsafe() (*obis.OBISMappedResult, error) {
 	return obis.ListToMap(result), nil
 }
 
-func (s *Scheduler) SetAndGetPrevious(result *obis.OBISMappedResult) *obis.OBISMappedResult {
+func (s *scheduler) SetAndGetPrevious(result *obis.OBISMappedResult) *obis.OBISMappedResult {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	previous := s.lastVal

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,8 +18,9 @@ import (
 type serverImpl struct {
 	debug          bool
 	config         *ServerConfig
-	meters         map[string]*Scheduler
+	meters         map[string]*scheduler
 	sessioncounter int64
+	srv            *http.Server
 }
 
 func NewServer(config *ServerConfig, debug bool) (Server, error) {
@@ -28,11 +30,11 @@ func NewServer(config *ServerConfig, debug bool) (Server, error) {
 	}
 	srv := &serverImpl{
 		config: config,
-		meters: make(map[string]*Scheduler),
+		meters: make(map[string]*scheduler),
 		debug:  debug,
 	}
 	for _, m := range config.Meters {
-		sched, err := NewScheduler(m)
+		sched, err := newScheduler(m)
 		if err != nil {
 			return nil, fmt.Errorf("could not create scheduler for meter %s: %w", m.Name, err)
 		}
@@ -49,7 +51,7 @@ func (s *serverImpl) ListenAndServe() error {
 	log.Infof("%s server, version %s", version.GonrgName, version.GonrgVersion)
 
 	for mtr, msched := range s.meters {
-		err := msched.Init()
+		err := msched.start()
 		if err != nil {
 			return fmt.Errorf("error setting up scheduler for meter %s: %w", mtr, err)
 		}
@@ -80,7 +82,21 @@ func (s *serverImpl) ListenAndServe() error {
 	router.GET("/ws/meter/:meter", s.getPushHandler(false))
 	router.GET("/ws/meter/:meter/:obiskey", s.getPushHandler(true))
 
-	return router.Run(s.config.ListenAddr)
+	s.srv = &http.Server{
+		Addr:    s.config.ListenAddr,
+		Handler: router.Handler(),
+	}
+	return s.srv.ListenAndServe()
+}
+
+func (s *serverImpl) Shutdown(ctx context.Context) error {
+	for mtr, msched := range s.meters {
+		err := msched.stop(ctx)
+		if err != nil {
+			return fmt.Errorf("error shutting down up scheduler for meter %s: %w", mtr, err)
+		}
+	}
+	return s.srv.Shutdown(ctx)
 }
 
 func (s *serverImpl) getPushHandler(obisval bool) func(c *gin.Context) {
@@ -139,8 +155,8 @@ func (s *serverImpl) getPushHandler(obisval bool) func(c *gin.Context) {
 		}
 
 		rcv := make(chan *obis.OBISMappedResult)
-		sched.pusher.AddListener(connid, rcv)
-		defer sched.pusher.DeleteListener(connid)
+		sched.pusher.addListener(connid, rcv)
+		defer sched.pusher.deleteListener(connid)
 
 	outer:
 		for {
@@ -201,7 +217,7 @@ func (s *serverImpl) getMeter(c *gin.Context) {
 		return
 	}
 
-	val, err := sched.GetValue()
+	val, err := sched.getValue()
 	if err != nil {
 		log.WithError(err).Warn("error while trying to get value")
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value, see server logs"})
@@ -221,7 +237,7 @@ func (s *serverImpl) getMeterValue(c *gin.Context) {
 		return
 	}
 
-	val, err := sched.GetValue()
+	val, err := sched.getValue()
 	if err != nil {
 		log.WithError(err).Warn("error while trying to get value")
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value, see server logs"})

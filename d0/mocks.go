@@ -1,7 +1,7 @@
 package d0
 
 // eBZ
-const Mock_ebz1str = `/EBZ5DD12345ETA_104
+const mock_ebz1str = `/EBZ5DD12345ETA_104
 
 
 1-0:0.0.0*255(1EBZ0102123456)
@@ -12,7 +12,7 @@ const Mock_ebz1str = `/EBZ5DD12345ETA_104
 !
 `
 
-const Mock_ebz2str = `/EBZ5DD12345ETA_104
+const mock_ebz2str = `/EBZ5DD12345ETA_104
 
 
 1-0:0.0.0*255(1EBZ0102123456)
@@ -26,7 +26,7 @@ const Mock_ebz2str = `/EBZ5DD12345ETA_104
 0-0:96.8.0*255(00A668EA)
 !`
 
-const Mock_ebz3str = `/EBZ5DD12345ETA_104
+const mock_ebz3str = `/EBZ5DD12345ETA_104
 
 
 1-0:0.0.0*255(1EBZ0102123456)
@@ -42,7 +42,7 @@ const Mock_ebz3str = `/EBZ5DD12345ETA_104
 `
 
 // Landis+Gyr Ultraheat T550
-const Mock_lugcuh50_1 = `/LUGCUH50
+const mock_lugcuh50_1 = `/LUGCUH50
 
 6.8(0005.269*MWh)6.26(00145.73*m3)9.21(12345678)
 6.26*01(00118.42*m3)6.8*01(0003.754*MWh)
@@ -70,7 +70,7 @@ F(0)9.20(12345678)6.35(60*m)
 !
 `
 
-const Mock_lugcuh50_2 = `/LUGCUH50
+const mock_lugcuh50_2 = `/LUGCUH50
 
 6.8(0005.294*MWh)6.26(00146.19*m3)9.21(12345678)
 6.26*01(00118.42*m3)6.8*01(0003.754*MWh)
@@ -98,10 +98,11 @@ F(0)9.20(12345678)6.35(60*m)
 !
 `
 
-var Mock_map = map[string]string{
-	"ebz1":       Mock_ebz1str,
-	"ebz2":       Mock_ebz2str,
-	"ebz3":       Mock_ebz3str,
-	"lugcuh50_1": Mock_lugcuh50_1,
-	"lugcuh50_2": Mock_lugcuh50_2,
+//nolint:unused // is used when mock is enabled
+var mock_map = map[string]string{
+	"ebz1":       mock_ebz1str,
+	"ebz2":       mock_ebz2str,
+	"ebz3":       mock_ebz3str,
+	"lugcuh50_1": mock_lugcuh50_1,
+	"lugcuh50_2": mock_lugcuh50_2,
 }

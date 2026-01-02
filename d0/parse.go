@@ -85,7 +85,6 @@ func (d *RawData) ParseObis(cfg *ParseConfig, foundSet func(*obis.OBISEntry) err
 				}
 			}
 			e.ValueScale = -len(post_dot)
-			obis.Floatify(e)
 			e.Unit = val_elems[5]
 		} else {
 			e.ValueText = valRaw
