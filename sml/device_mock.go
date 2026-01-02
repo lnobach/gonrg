@@ -104,7 +104,6 @@ func (m *MockMutableRawData) ParseObis(cfg *d0.ParseConfig,
 				e.ValueNum += m.incr % 30
 			}
 		}
-		obis.Floatify(e)
 		return foundSet(e)
 	})
 

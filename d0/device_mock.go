@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lnobach/gonrg/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,9 +34,9 @@ func deviceSetDefaults(c *DeviceConfig) error {
 }
 
 func (d *deviceImpl) Get() (ParseableRawData, error) {
-	response, exists := Mock_map[d.config.Device]
+	response, exists := mock_map[d.config.Device]
 	if !exists {
-		return nil, fmt.Errorf("device not found: %s, available mock devices: %v", d.config.Device, keysToStr(Mock_map))
+		return nil, fmt.Errorf("device not found: %s, available mock devices: %v", d.config.Device, util.KeysToStr(mock_map, ","))
 	}
 	log.Warnf("not using a real device, mocking %s", d.config.Device)
 
@@ -49,15 +50,4 @@ func (d *deviceImpl) Get() (ParseableRawData, error) {
 
 func (d *deviceImpl) GetForever(ctx context.Context, rcv chan ParseableRawData) {
 	panic("GetForever unimplemented for plain D0")
-}
-
-func keysToStr[T any](m map[string]T) string {
-	if len(m) == 0 {
-		return ""
-	}
-	str := ""
-	for key, _ := range m {
-		str += key + ","
-	}
-	return str[0 : len(str)-1]
 }

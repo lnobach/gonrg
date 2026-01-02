@@ -68,7 +68,6 @@ func parseValue(entry *obis.OBISEntry, unitnum uint8, scale int, value *TLV) err
 	if err != nil {
 		return err
 	}
-	obis.Floatify(entry)
 	return nil
 }
 

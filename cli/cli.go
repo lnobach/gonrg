@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/lnobach/gonrg/d0"
@@ -12,6 +16,10 @@ import (
 	"github.com/lnobach/gonrg/version"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+)
+
+const (
+	MaxShutdownGraceTime = 10 * time.Second
 )
 
 var (
@@ -103,12 +111,26 @@ var (
 			if err != nil {
 				return fmt.Errorf("error creating server: %w", err)
 			}
-			err = s.ListenAndServe()
-			if err != nil {
+			errchan := make(chan error)
+			go func() {
+				errchan <- s.ListenAndServe()
+			}()
+			termchan := make(chan os.Signal, 1)
+			signal.Notify(termchan, syscall.SIGINT, syscall.SIGTERM)
+			select {
+			case err := <-errchan:
 				cmd.SilenceUsage = true
 				return fmt.Errorf("error while serving: %w", err)
+			case sig := <-termchan:
+				log.Infof("Signal %s caught, terminating server...", sig.String())
+				ctx, cancel := context.WithTimeout(context.Background(), MaxShutdownGraceTime)
+				defer cancel()
+				err := s.Shutdown(ctx)
+				if err != nil {
+					return fmt.Errorf("error shutting down server: %s", err)
+				}
+				return nil
 			}
-			return nil
 		},
 	}
 )

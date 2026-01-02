@@ -109,7 +109,7 @@ func (d *deviceImpl) Get() (ParseableRawData, error) {
 	log.Debugf("reading response...")
 	baudRateChanged := false
 	foundStart := false
-	scanner := bufio.NewScanner(NewTimeoutReader(port))
+	scanner := bufio.NewScanner(newTimeoutReader(port))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !foundStart && strings.HasPrefix(line, "/") {
@@ -156,7 +156,7 @@ type timeoutReader struct {
 var errTimeout = errors.New("timed out while waiting for d0 response")
 
 // see https://github.com/bugst/go-serial/issues/148
-func NewTimeoutReader(r io.Reader) timeoutReader {
+func newTimeoutReader(r io.Reader) timeoutReader {
 	return timeoutReader{r}
 }
 

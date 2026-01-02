@@ -15,26 +15,26 @@ type Listener interface {
 	OnChange(change *obis.OBISListResult)
 }
 
-type Pusher struct {
-	sched      *Scheduler
+type pusher struct {
+	sched      *scheduler
 	rcv        chan d0.ParseableRawData
 	listeners  map[string]chan *obis.OBISMappedResult
 	listenerMu sync.Mutex
 }
 
-func NewPusher(sched *Scheduler) *Pusher {
-	return &Pusher{
+func newPusher(sched *scheduler) *pusher {
+	return &pusher{
 		sched:     sched,
 		rcv:       make(chan d0.ParseableRawData),
 		listeners: make(map[string]chan *obis.OBISMappedResult),
 	}
 }
 
-func (p *Pusher) GetReceiver() chan d0.ParseableRawData {
+func (p *pusher) getReceiver() chan d0.ParseableRawData {
 	return p.rcv
 }
 
-func (p *Pusher) ParseAndPushForever(ctx context.Context, parsecfg *d0.ParseConfig) {
+func (p *pusher) parseAndPushForever(ctx context.Context, parsecfg *d0.ParseConfig) {
 	for {
 		select {
 		case raw := <-p.rcv:
@@ -45,7 +45,7 @@ func (p *Pusher) ParseAndPushForever(ctx context.Context, parsecfg *d0.ParseConf
 	}
 }
 
-func (p *Pusher) safeParseAndPush(parsecfg *d0.ParseConfig, raw d0.ParseableRawData) {
+func (p *pusher) safeParseAndPush(parsecfg *d0.ParseConfig, raw d0.ParseableRawData) {
 	defer func() {
 		err := util.PanicToError(recover(), nil)
 		if err != nil {
@@ -60,16 +60,16 @@ func (p *Pusher) safeParseAndPush(parsecfg *d0.ParseConfig, raw d0.ParseableRawD
 	p.setAndNotify(result)
 }
 
-func (p *Pusher) setAndNotify(result *obis.OBISListResult) {
+func (p *pusher) setAndNotify(result *obis.OBISListResult) {
 	resultMap := obis.ListToMap(result)
 	prev := p.sched.SetAndGetPrevious(resultMap)
 	change := obis.GetChanged(prev.GetList(), result)
 	if change != nil {
-		p.NotifyChange(change)
+		p.notifyChange(change)
 	}
 }
 
-func (p *Pusher) NotifyChange(change *obis.OBISListResult) {
+func (p *pusher) notifyChange(change *obis.OBISListResult) {
 	changeMap := obis.ListToMap(change)
 	p.listenerMu.Lock()
 	defer p.listenerMu.Unlock()
@@ -82,7 +82,7 @@ func (p *Pusher) NotifyChange(change *obis.OBISListResult) {
 	}
 }
 
-func (p *Pusher) AddListener(id string, receiver chan *obis.OBISMappedResult) {
+func (p *pusher) addListener(id string, receiver chan *obis.OBISMappedResult) {
 	log.WithFields(log.Fields{"id": id}).
 		Debug("adding listener for meter updates")
 	p.listenerMu.Lock()
@@ -90,7 +90,7 @@ func (p *Pusher) AddListener(id string, receiver chan *obis.OBISMappedResult) {
 	p.listeners[id] = receiver
 }
 
-func (p *Pusher) DeleteListener(id string) {
+func (p *pusher) deleteListener(id string) {
 	log.WithFields(log.Fields{"id": id}).
 		Debug("removing listener for meter updates")
 	p.listenerMu.Lock()
