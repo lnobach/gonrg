@@ -15,5 +15,6 @@ type Device interface {
 }
 
 type ParseableRawData interface {
+	// Resulting data is never nil without an error.
 	ParseObis(cfg *ParseConfig, foundSet func(*obis.OBISEntry) error) (string, error)
 }

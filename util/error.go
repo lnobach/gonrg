@@ -18,7 +18,7 @@ func PanicToError(pan any, origErr error) error {
 	if pan == nil {
 		return origErr
 	}
-	log.WithField("stack", debug.Stack()).Info("trace of panic which occurred")
+	log.WithField("stack", string(debug.Stack())).Info("trace of panic which occurred")
 	switch x := pan.(type) {
 	case string:
 		return fmt.Errorf("panicked: %s", x)
