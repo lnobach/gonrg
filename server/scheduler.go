@@ -141,20 +141,14 @@ func (s *scheduler) fetchValueCron() {
 	start := time.Now()
 	result, err := s.fetchValueSafe()
 	if err != nil {
-		result = nil
+		log.WithError(err).Errorf("error fetching value for meter %s, duration %s", s.config.Name, time.Since(start))
+		return
 	}
+	log.Debugf("fetched value for meter %s, duration %s", s.config.Name, time.Since(start))
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	prev := s.lastVal
 	s.lastVal = result
-	if err != nil {
-		log.WithError(err).Errorf("error fetching value for meter %s, duration %s", s.config.Name, time.Since(start))
-	} else {
-		log.Debugf("fetched value for meter %s, duration %s", s.config.Name, time.Since(start))
-	}
-	if result == nil {
-		return
-	}
 	change := obis.GetChanged(prev.GetList(), result.GetList())
 	if change != nil {
 		s.pusher.notifyChange(change)
