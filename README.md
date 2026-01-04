@@ -38,8 +38,7 @@ please open a pull request that extends the list.
 
 ## TODOs
 
-- **Library How-To**
-- Server OpenAPI specification and Swagger UI
+- **Server OpenAPI specification** and Swagger UI
 - CLI Watch mode
 - Client code
 - HAN interface support (I don't have any devices available to test with)
@@ -193,6 +192,16 @@ john@doe:~/foo$ curl http://server:8080/meter/power/1.8.0
     }
 }
 ```
+
+## Web App Demo
+
+There is a [web app demo](./demo) available. It demonstrates the usage
+of the following API elements:
+
+- GET `/meters` to get a list of the meters,
+- GET `/meter/<meter>` to get the readings data from a meter,
+- Websocket `/ws/meter/<meter>` to keep the readings table updated.
+
 ## Go Library - Example
 
 Documentation of the functions and types will be improved very soon!
@@ -245,16 +254,6 @@ func main() {
 
 }
 ```
-
-
-## Web App Demo
-
-There is a [web app demo](./demo) available. It demonstrates the usage
-of the following API elements:
-
-- GET `/meters` to get a list of the meters,
-- GET `/meter/<meter>` to get the readings data from a meter,
-- Websocket `/ws/meter/<meter>` to keep the readings table updated.
 
 ## Miscellaneous
 

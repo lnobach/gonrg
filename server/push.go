@@ -56,6 +56,7 @@ func (p *pusher) safeParseAndPush(parsecfg *d0.ParseConfig, raw d0.ParseableRawD
 	result, err := d0.ParseOBISList(parsecfg, raw, now)
 	if err != nil {
 		log.WithError(err).Error("error parsing obis data")
+		return
 	}
 	p.setAndNotify(result)
 }

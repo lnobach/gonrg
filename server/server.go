@@ -223,6 +223,11 @@ func (s *serverImpl) getMeter(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value, see server logs"})
 		return
 	}
+	if val == nil {
+		log.Debug("value we tried to get has not been set (yet)")
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value because no data"})
+		return
+	}
 
 	c.IndentedJSON(http.StatusOK, val.GetList())
 
@@ -244,7 +249,7 @@ func (s *serverImpl) getMeterValue(c *gin.Context) {
 		return
 	}
 	if val == nil {
-		log.Debug("value we tried to get is nil")
+		log.Debug("value we tried to get has not been set (yet)")
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "could not get value because no data"})
 		return
 	}
