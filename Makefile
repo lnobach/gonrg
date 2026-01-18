@@ -2,6 +2,7 @@
 
 PLATFORMS := linux-amd64 windows-amd64.exe darwin-amd64 darwin-arm64 linux-arm linux-arm64 linux-mips
 releasebins := $(addprefix release/gonrg-, $(PLATFORMS))
+releasebinsgz := $(addsuffix .gz, $(PLATFORMS))
 
 GONRG_VERSION = $(shell awk -v FS="gonrg=" 'NF>1{print $$2}' VERSIONS)
 GO_LDFLAGS := "\
@@ -41,6 +42,9 @@ release/gonrg-linux-arm64: $(ALLSRC_FILES)
 
 release/gonrg-linux-mips: $(ALLSRC_FILES)
 	GOOS=linux GOARCH=mips GOMIPS=softfloat go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+releasegz: release
+	gzip release/*
 
 test: unittest
 
