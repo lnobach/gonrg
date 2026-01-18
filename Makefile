@@ -1,12 +1,7 @@
 .PHONY : test unittest clean
 
-PLATFORMS := linux-amd64 windows-amd64.exe darwin-amd64 darwin-arm64 linux-arm-6 linux-arm64-8 linux-mips
-
+PLATFORMS := linux-amd64 windows-amd64.exe darwin-amd64 darwin-arm64 linux-arm linux-arm64 linux-mips
 releasebins := $(addprefix release/gonrg-, $(PLATFORMS))
-temp = $(subst -, ,$@)
-os = $(word 2, $(temp))
-arch = $(word 1, $(subst .,  ,$(word 3, $(temp))))
-version = $(word 4, $(temp))
 
 GONRG_VERSION = $(shell awk -v FS="gonrg=" 'NF>1{print $$2}' VERSIONS)
 GO_LDFLAGS := "\
@@ -26,8 +21,26 @@ gonrg-mock: $(ALLSRC_FILES)
 
 release: $(releasebins)
 
-$(releasebins): $(ALLSRC_FILES)
-	GOOS=$(os) GOARCH=$(arch) GOARM=$(version) go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+release/gonrg-linux-amd64: $(ALLSRC_FILES)
+	GOOS=linux GOARCH=amd64 go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+release/gonrg-windows-amd64.exe: $(ALLSRC_FILES)
+	GOOS=windows GOARCH=amd64 go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+release/gonrg-darwin-amd64: $(ALLSRC_FILES)
+	GOOS=darwin GOARCH=amd64 go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+release/gonrg-darwin-arm64: $(ALLSRC_FILES)
+	GOOS=darwin GOARCH=arm64 GOARM=8 go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+release/gonrg-linux-arm: $(ALLSRC_FILES)
+	GOOS=linux GOARCH=arm GOARM=6 go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+release/gonrg-linux-arm64: $(ALLSRC_FILES)
+	GOOS=linux GOARCH=arm64 GOARM=8 go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
+
+release/gonrg-linux-mips: $(ALLSRC_FILES)
+	GOOS=linux GOARCH=mips GOMIPS=softfloat go build -v -ldflags $(GO_LDFLAGS) -o '$@' ./cmd/gonrg/.
 
 test: unittest
 
