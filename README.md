@@ -45,7 +45,7 @@ please open a pull request that extends the list.
 
 ## How to build
 
-Building requires **go 1.25**.
+Building requires **go 1.26**.
 
 Just hit `make` to obtain a statically linked binary in the project root.
 
