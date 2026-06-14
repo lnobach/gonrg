@@ -96,6 +96,9 @@ func (s *serverImpl) Shutdown(ctx context.Context) error {
 			return fmt.Errorf("error shutting down up scheduler for meter %s: %w", mtr, err)
 		}
 	}
+	if s.srv == nil {
+		return nil
+	}
 	return s.srv.Shutdown(ctx)
 }
 
