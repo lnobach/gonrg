@@ -61,7 +61,7 @@ type OBISMappedResult struct {
 type OBISSingleResult struct {
 	MeasurementTime time.Time  `json:"measurementTime"`
 	DeviceID        string     `json:"deviceID"`
-	Entry           *OBISEntry `json:"list"`
+	Entry           *OBISEntry `json:"entry"`
 }
 
 func (e *OBISEntry) PrettyValue(unit bool) string {

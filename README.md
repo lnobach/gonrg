@@ -38,7 +38,6 @@ please open a pull request that extends the list.
 
 ## TODOs
 
-- **Server OpenAPI specification** and Swagger UI
 - CLI Watch mode
 - Client code
 - HAN interface support (I don't have any devices available to test with)
@@ -180,18 +179,31 @@ john@doe:~/foo$ curl http://server:8080/meter/power/1.8.0
 {
     "measurementTime": "2025-12-15T21:17:57.759573978+01:00",
     "deviceID": "EBZ5DD12345ETA_104",
-    "list": {
+    "entry": {
         "exactKey": "1-0:1.8.0*255",
         "simplifiedKey": "1.8.0",
         "name": "energy_cons",
         "valueText": "",
         "valueNum": 234172889972,
-        "valueScale": 8,
+        "valueScale": -8,
         "valueFloat": 2341.72889972,
         "unit": "kWh"
     }
 }
 ```
+
+### API Specifications
+
+The server API is specified in the [api](./api) directory:
+
+- [api/openapi.yaml](./api/openapi.yaml) - OpenAPI 3.1 specification of the
+  REST endpoints (`/meters`, `/meter/<meter>`, `/meter/<meter>/<obiskey>`),
+- [api/asyncapi.yaml](./api/asyncapi.yaml) - AsyncAPI 3.0 specification of the
+  WebSocket push endpoints (`/ws/meter/<meter>`,
+  `/ws/meter/<meter>/<obiskey>`).
+
+Both files also document the payload fields, the freshness of the served
+values, and the origin/CORS checks.
 
 ## Web App Demo
 
