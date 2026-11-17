@@ -24,7 +24,7 @@ The following meters have been verified to be directly compatible:
   - Tested with and without extended data (detailed per-phase power).
 - **Landis+Gyr Ultraheat T550**
   - District heating meter
-  - Required params: `--baudrate 300 --baudrate-read 2400 --device-option 0preamble --response-delay 300ms`
+  - Required params: `--baudrate 300 --baudrate-read 2400 --device-option 0preamble --response-delay 300ms --after-delay 250ms`
   - Only poll daily or hourly because the device runs on battery.
 - **Iskra MT631**
   - Uses SML
@@ -65,6 +65,7 @@ Available Commands:
   server      run in server mode given a config
 
 Flags:
+  -a, --after-delay duration      (non-SML) wait after reading response
   -b, --baudrate int              baud rate, 0 means choose best option
   -r, --baudrate-read int         (non-SML) baud rate for reading, 0 means same like baudrate
   -t, --d0-timeout duration       read timeout of the d0 serial connection
