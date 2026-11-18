@@ -1,0 +1,391 @@
+# OpenAPI specification of the gonrg server REST API.
+#
+# The WebSocket part of the API (/ws/...) is not covered by OpenAPI, see
+# asyncapi.yaml instead.
+openapi: 3.1.0
+
+info:
+  title: gonrg Meter API
+  version: 1.0.3
+  summary: Read OBIS data of D0/SML energy meters over JSON/REST.
+  description: |
+    REST API of the `gonrg server` mode. The server polls one or more
+    locally attached energy meters (plain text D0 or SML) and serves their
+    OBIS readings as JSON.
+
+    Meters are identified by the `name` given to them in the server
+    configuration file (see `example_server.yaml`). The set of configured
+    meters is static for the lifetime of the process.
+
+    ### Freshness of the values
+
+    A reading is never taken during the request itself in a predictable way -
+    which value you get depends on the meter's configuration:
+
+    * **SML meters without `cron`**: the device is read continuously, the
+      server always answers with the most recently received reading.
+    * **Meters with `cron`**: the device is polled on the configured schedule,
+      the server answers with the result of the last scheduled poll.
+    * **Plain D0 meters without `cron`**: the server answers from a cache; when
+      the cached value is older than `ratelimitmaxage`, the meter is read
+      synchronously inside the request, which may take seconds.
+
+    ### Error handling
+
+    Errors are returned as a JSON object with a single `message` field.
+
+    ### CORS
+
+    CORS headers are only sent when `alloworigins` is non-empty in the server
+    configuration. Only the `GET` method is allowed for cross-origin requests.
+  license:
+    name: See LICENSE file of the gonrg project
+    url: https://github.com/lnobach/gonrg/blob/master/LICENSE
+  contact:
+    name: gonrg project
+    url: https://github.com/lnobach/gonrg
+
+externalDocs:
+  description: gonrg README and how-to
+  url: https://nobach.net/powermeters/gonrg-serve-obis-data-smart-meters
+
+servers:
+  - url: http://{host}:{port}
+    description: |
+      A gonrg server as configured by `listenaddr`. gonrg itself serves plain
+      HTTP only; put it behind a reverse proxy to add TLS and authentication.
+    variables:
+      host:
+        default: localhost
+      port:
+        default: "8080"
+
+tags:
+  - name: meters
+    description: Discovery of the meters served by this instance.
+  - name: readings
+    description: OBIS readings of a single meter.
+
+paths:
+
+  /meters:
+    get:
+      operationId: getMeters
+      tags: [meters]
+      summary: List the names of all configured meters
+      description: |
+        Returns the names of all meters configured for this server instance.
+        The names are the path segment to be used as `{meter}` in all other
+        operations. The order of the names is unspecified.
+      responses:
+        "200":
+          description: The list of configured meter names.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  description: Name of a configured meter.
+                examples:
+                  - ["power", "heat", "smartmeter1"]
+
+  /meter/{meter}:
+    parameters:
+      - $ref: "#/components/parameters/Meter"
+    get:
+      operationId: getMeter
+      tags: [readings]
+      summary: Get all OBIS readings of a meter
+      description: |
+        Returns the complete last reading of the given meter: all OBIS entries
+        the meter reported, in the order the parser found them in the meter's
+        data.
+      responses:
+        "200":
+          description: The last reading of the meter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OBISListResult"
+        "404":
+          description: No meter with this name is configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                notFound:
+                  value:
+                    message: meter not found or no data yet
+        "500":
+          description: |
+            The meter could not be read, or no reading has been taken yet.
+            Details are only in the server log.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                readFailed:
+                  summary: Reading the device failed
+                  value:
+                    message: could not get value, see server logs
+                noData:
+                  summary: No reading available yet
+                  value:
+                    message: could not get value because no data
+
+  /meter/{meter}/{obiskey}:
+    parameters:
+      - $ref: "#/components/parameters/Meter"
+      - $ref: "#/components/parameters/ObisKey"
+    get:
+      operationId: getMeterValue
+      tags: [readings]
+      summary: Get a single OBIS reading of a meter
+      description: |
+        Returns a single OBIS entry of the meter's last reading, looked up by
+        exact key, simplified key or catalogue name.
+      responses:
+        "200":
+          description: The requested OBIS entry of the meter's last reading.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OBISSingleResult"
+        "404":
+          description: |
+            No meter with this name is configured, or the meter's last reading
+            does not contain the requested OBIS key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                meterNotFound:
+                  value:
+                    message: meter not found
+                keyNotFound:
+                  value:
+                    message: obis value not found
+        "500":
+          description: |
+            The meter could not be read, or no reading has been taken yet.
+            Details are only in the server log.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                readFailed:
+                  value:
+                    message: could not get value, see server logs
+                noData:
+                  value:
+                    message: could not get value because no data
+
+components:
+
+  parameters:
+
+    Meter:
+      name: meter
+      in: path
+      required: true
+      description: |
+        Name of the meter as configured in the server's `meters` list.
+      schema:
+        type: string
+        examples: ["power"]
+
+    ObisKey:
+      name: obiskey
+      in: path
+      required: true
+      description: |
+        Identifies one OBIS entry of the reading. Three forms of key are
+        accepted, all resolved against the same lookup table:
+
+        * the **exact key** as reported by the meter, e.g. `1-0:1.8.0*255`,
+        * the **simplified key** without medium and tariff part, e.g. `1.8.0`,
+        * the **catalogue name** of well-known keys, e.g. `energy_cons`
+          (see `obis/catalogue.go` for the full list).
+
+        If a simplified key or name is ambiguous within one reading, the entry
+        found last wins; exact keys always win over names and simplified keys.
+
+        The characters `:` and `*` of exact keys are legal inside a path
+        segment and need not be percent-encoded, but encoding them is fine too.
+      schema:
+        type: string
+        examples: ["1.8.0", "1-0:1.8.0*255", "energy_cons"]
+
+  schemas:
+
+    OBISEntry:
+      type: object
+      title: OBIS entry
+      description: |
+        A single OBIS value of a reading. Which of the value fields are
+        populated depends on the entry: textual entries (such as device
+        identifiers) carry `valueText` and leave the numeric fields at `0`,
+        numeric entries carry `valueNum`/`valueScale` and leave `valueText`
+        empty.
+      required:
+        - exactKey
+        - simplifiedKey
+        - name
+        - valueText
+        - valueNum
+        - valueScale
+        - valueFloat
+        - unit
+      properties:
+        exactKey:
+          type: string
+          description: |
+            Full OBIS key as reported by the meter, including medium and tariff
+            part where present.
+          examples: ["1-0:1.8.0*255"]
+        simplifiedKey:
+          type: string
+          description: OBIS key reduced to its value group part.
+          examples: ["1.8.0"]
+        name:
+          type: string
+          description: |
+            Symbolic name of well-known OBIS keys, taken from gonrg's
+            catalogue, or an empty string for keys gonrg does not know.
+          examples: ["energy_cons"]
+        valueText:
+          type: string
+          description: |
+            The raw value as text, set when the value could not be parsed as a
+            number (e.g. device identifiers, status words). Empty for numeric
+            values.
+          examples: ["1EBZ0102123456"]
+        valueNum:
+          type: integer
+          format: int64
+          description: |
+            Unscaled integer value, i.e. the value with the decimal point
+            removed. Combine with `valueScale` to get the real value.
+          examples: [234172889972]
+        valueScale:
+          type: integer
+          description: |
+            Decimal exponent of `valueNum`:
+            `real value = valueNum * 10^valueScale`.
+            Typically zero or negative.
+          examples: [-8]
+        valueFloat:
+          type: number
+          description: |
+            Convenience representation of `valueNum * 10^valueScale` as a JSON
+            number. It is serialized as an exact decimal literal (no binary
+            floating point rounding by the server), so parsing it as a decimal
+            type keeps full precision; parsing it as an IEEE-754 double may
+            lose precision for large meter counters. The authoritative value is
+            always `valueNum`/`valueScale`.
+
+            This field is output-only and is ignored on input.
+          examples: [2341.72889972]
+        unit:
+          type: string
+          description: |
+            Unit of the value as reported by the meter (D0) or derived from the
+            SML unit code, or an empty string if the entry has no unit.
+          examples: ["kWh"]
+      examples:
+        - exactKey: "1-0:1.8.0*255"
+          simplifiedKey: "1.8.0"
+          name: energy_cons
+          valueText: ""
+          valueNum: 234172889972
+          valueScale: -8
+          valueFloat: 2341.72889972
+          unit: kWh
+
+    OBISListResult:
+      type: object
+      title: OBIS list result
+      description: A full meter reading with all its OBIS entries.
+      required:
+        - measurementTime
+        - deviceID
+        - list
+      properties:
+        measurementTime:
+          type: string
+          format: date-time
+          description: |
+            Time at which the server read the data from the meter (server
+            clock, RFC 3339 with the server's local offset). This is not a
+            timestamp taken from the meter itself.
+          examples: ["2025-12-15T21:10:29.730101646+01:00"]
+        deviceID:
+          type: string
+          description: |
+            Device identifier as announced by the meter: the D0 preamble line
+            without its leading `/`, or the SML server ID.
+          examples: ["EBZ5DD12345ETA_104"]
+        list:
+          type: array
+          description: |
+            All OBIS entries of the reading, in the order they appeared in the
+            meter's data. May be empty if the meter sent no parseable entries
+            and strict mode is off.
+          items:
+            $ref: "#/components/schemas/OBISEntry"
+
+    OBISSingleResult:
+      type: object
+      title: OBIS single result
+      description: |
+        A meter reading reduced to one OBIS entry. The entry is a single object
+        under `entry`, as opposed to the `list` array of `OBISListResult`.
+      required:
+        - measurementTime
+        - deviceID
+        - entry
+      properties:
+        measurementTime:
+          type: string
+          format: date-time
+          description: See `OBISListResult.measurementTime`.
+          examples: ["2025-12-15T21:17:57.759573978+01:00"]
+        deviceID:
+          type: string
+          description: See `OBISListResult.deviceID`.
+          examples: ["EBZ5DD12345ETA_104"]
+        entry:
+          description: The single requested OBIS entry.
+          allOf:
+            - $ref: "#/components/schemas/OBISEntry"
+      examples:
+        - measurementTime: "2025-12-15T21:17:57.759573978+01:00"
+          deviceID: "EBZ5DD12345ETA_104"
+          entry:
+            exactKey: "1-0:1.8.0*255"
+            simplifiedKey: "1.8.0"
+            name: energy_cons
+            valueText: ""
+            valueNum: 234172889972
+            valueScale: -8
+            valueFloat: 2341.72889972
+            unit: kWh
+
+    Error:
+      type: object
+      title: Error
+      description: Error body returned for all non-2xx responses.
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: |
+            Human-readable error message. Deliberately coarse - the exact
+            cause is only written to the server log.
+      examples:
+        - message: meter not found

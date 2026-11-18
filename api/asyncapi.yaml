@@ -1,0 +1,355 @@
+# AsyncAPI specification of the gonrg server WebSocket (push) API.
+#
+# The request/response part of the API is not covered here, see openapi.yaml.
+asyncapi: 3.0.0
+
+info:
+  title: gonrg Meter Push API
+  version: 1.0.3
+  description: |
+    WebSocket API of the `gonrg server` mode. A client opens a WebSocket per
+    meter (optionally per OBIS key) and receives a message whenever the meter's
+    reading changes.
+
+    ### What is pushed, and when
+
+    The server compares every new reading against the previous one
+    (`obis.GetChanged`) and pushes **only the entries whose value changed**,
+    comparing `valueNum`, `valueText`, `valueScale`, `exactKey` and `unit`
+    positionally. Consequences for clients:
+
+    * A message is a **delta**, not a snapshot. Fetch
+      `GET /meter/{meter}` once over REST to get the initial full state, then
+      patch it with the pushed entries.
+    * If nothing changed, nothing is sent. There is no heartbeat and no
+      server-side ping, so an idle connection can stay silent indefinitely.
+    * The very first reading after server startup has no predecessor and is
+      therefore pushed in full to listeners connected at that time.
+
+    How often changes can occur depends on the meter's configuration: SML
+    meters without `cron` push as fast as the meter sends data, meters with
+    `cron` push at most once per scheduled poll. Plain D0 meters **without**
+    `cron` have no push support at all (see below).
+
+    ### Connection lifecycle
+
+    The server accepts the upgrade first and only then validates the request.
+    It closes the connection immediately, without sending any application
+    message, if:
+
+    * no meter with the requested name is configured, or
+    * the meter has no pusher, i.e. it is a plain D0 meter without a `cron`
+      schedule - such meters are only read on demand by REST requests.
+
+    An abrupt close right after a successful handshake therefore means
+    "unknown meter or push not supported", and is not distinguishable from a
+    network problem on the wire. Clients should reconnect with a backoff; the
+    demo app reconnects after one second.
+
+    ### Clients must not send messages
+
+    This is a one-way (server-to-client) API. The read limit on the server side
+    is one byte, so any non-trivial client message makes the server fail the
+    connection with close code 1009 (message too big). Control frames are
+    unaffected: a client `ping` is answered, and `close` is handled normally.
+
+    ### Backpressure
+
+    Delivery to a connection is non-blocking: if a client does not read fast
+    enough, the update for that client is **dropped** (and a warning is logged
+    server-side) rather than queued. Clients that need gap-free data must
+    re-sync via REST.
+
+    ### Origin checking and CORS
+
+    The WebSocket handshake is checked server-side: a request carrying an
+    `Origin` header is accepted if the origin matches one of the configured
+    `alloworigins` entries (`*` and leading-wildcard patterns such as
+    `*.example.com` are supported), or if the origin's host equals the request
+    `Host`. Requests without an `Origin` header (i.e. non-browser clients) are
+    always accepted. This check applies even when `alloworigins` is empty.
+  license:
+    name: See LICENSE file of the gonrg project
+    url: https://github.com/lnobach/gonrg/blob/master/LICENSE
+  contact:
+    name: gonrg project
+    url: https://github.com/lnobach/gonrg
+
+servers:
+
+  gonrg:
+    host: "localhost:8080"
+    protocol: ws
+    description: |
+      A gonrg server as configured by `listenaddr`. gonrg serves plain `ws`
+      only; put it behind a reverse proxy to get `wss` and authentication.
+
+channels:
+
+  meterChanges:
+    address: /ws/meter/{meter}
+    title: All changes of a meter
+    summary: Pushes every changed OBIS entry of one meter.
+    servers:
+      - $ref: "#/servers/gonrg"
+    parameters:
+      meter:
+        $ref: "#/components/parameters/meter"
+    bindings:
+      ws:
+        method: GET
+        bindingVersion: 0.1.0
+    messages:
+      obisChangeList:
+        $ref: "#/components/messages/OBISChangeList"
+
+  meterValueChanges:
+    address: /ws/meter/{meter}/{obiskey}
+    title: Changes of a single OBIS value
+    summary: Pushes one OBIS entry of one meter whenever that entry changes.
+    description: |
+      Like `/ws/meter/{meter}`, but filtered to a single OBIS key. The filter
+      is applied to the change set after change detection, so a message is
+      emitted only when this very entry changed - readings in which other
+      entries changed produce no message on this channel.
+    servers:
+      - $ref: "#/servers/gonrg"
+    parameters:
+      meter:
+        $ref: "#/components/parameters/meter"
+      obiskey:
+        $ref: "#/components/parameters/obiskey"
+    bindings:
+      ws:
+        method: GET
+        bindingVersion: 0.1.0
+    messages:
+      obisChangeSingle:
+        $ref: "#/components/messages/OBISChangeSingle"
+
+operations:
+
+  receiveMeterChanges:
+    action: send
+    channel:
+      $ref: "#/channels/meterChanges"
+    title: Push changed OBIS entries
+    summary: The server sends the changed entries of each new reading.
+    messages:
+      - $ref: "#/channels/meterChanges/messages/obisChangeList"
+
+  receiveMeterValueChanges:
+    action: send
+    channel:
+      $ref: "#/channels/meterValueChanges"
+    title: Push one changed OBIS entry
+    summary: The server sends the selected entry whenever it changes.
+    messages:
+      - $ref: "#/channels/meterValueChanges/messages/obisChangeSingle"
+
+components:
+
+  parameters:
+
+    meter:
+      description: |
+        Name of the meter as configured in the server's `meters` list. Use
+        `GET /meters` to discover the configured names.
+      examples:
+        - power
+
+    obiskey:
+      description: |
+        Identifies one OBIS entry. Accepted forms, all resolved against the
+        same lookup table: the exact key as reported by the meter
+        (`1-0:1.8.0*255`), the simplified key (`1.8.0`), or the catalogue name
+        of well-known keys (`energy_cons`, see `obis/catalogue.go`).
+      examples:
+        - "1.8.0"
+        - "1-0:1.8.0*255"
+        - energy_cons
+
+  messages:
+
+    OBISChangeList:
+      name: obisChangeList
+      title: OBIS change list
+      summary: The OBIS entries that changed in the latest reading.
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/OBISListResult"
+      examples:
+        - name: consumptionAndPowerChanged
+          summary: Counter and current power changed
+          payload:
+            measurementTime: "2025-12-15T21:10:29.730101646+01:00"
+            deviceID: EBZ5DD12345ETA_104
+            list:
+              - exactKey: "1-0:1.8.0*255"
+                simplifiedKey: "1.8.0"
+                name: energy_cons
+                valueText: ""
+                valueNum: 234172889972
+                valueScale: -8
+                valueFloat: 2341.72889972
+                unit: kWh
+              - exactKey: "1-0:16.7.0*255"
+                simplifiedKey: "16.7.0"
+                name: power_active
+                valueText: ""
+                valueNum: 4123
+                valueScale: -1
+                valueFloat: 412.3
+                unit: W
+
+    OBISChangeSingle:
+      name: obisChangeSingle
+      title: OBIS single change
+      summary: The selected OBIS entry, sent because it changed.
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/OBISSingleResult"
+      examples:
+        - name: consumptionChanged
+          summary: The consumption counter changed
+          payload:
+            measurementTime: "2025-12-15T21:10:29.730101646+01:00"
+            deviceID: EBZ5DD12345ETA_104
+            entry:
+              exactKey: "1-0:1.8.0*255"
+              simplifiedKey: "1.8.0"
+              name: energy_cons
+              valueText: ""
+              valueNum: 234172889972
+              valueScale: -8
+              valueFloat: 2341.72889972
+              unit: kWh
+
+  schemas:
+
+    OBISEntry:
+      type: object
+      title: OBIS entry
+      description: |
+        A single OBIS value. Which of the value fields are populated depends on
+        the entry: textual entries (such as device identifiers) carry
+        `valueText` and leave the numeric fields at `0`, numeric entries carry
+        `valueNum`/`valueScale` and leave `valueText` empty.
+      required:
+        - exactKey
+        - simplifiedKey
+        - name
+        - valueText
+        - valueNum
+        - valueScale
+        - valueFloat
+        - unit
+      properties:
+        exactKey:
+          type: string
+          description: |
+            Full OBIS key as reported by the meter, including medium and tariff
+            part where present.
+          examples: ["1-0:1.8.0*255"]
+        simplifiedKey:
+          type: string
+          description: OBIS key reduced to its value group part.
+          examples: ["1.8.0"]
+        name:
+          type: string
+          description: |
+            Symbolic name of well-known OBIS keys, taken from gonrg's
+            catalogue, or an empty string for keys gonrg does not know.
+          examples: ["energy_cons"]
+        valueText:
+          type: string
+          description: |
+            The raw value as text, set when the value could not be parsed as a
+            number. Empty for numeric values.
+          examples: ["1EBZ0102123456"]
+        valueNum:
+          type: integer
+          format: int64
+          description: |
+            Unscaled integer value, i.e. the value with the decimal point
+            removed. Combine with `valueScale` to get the real value.
+          examples: [234172889972]
+        valueScale:
+          type: integer
+          description: |
+            Decimal exponent of `valueNum`:
+            `real value = valueNum * 10^valueScale`.
+            Typically zero or negative.
+          examples: [-8]
+        valueFloat:
+          type: number
+          description: |
+            Convenience representation of `valueNum * 10^valueScale` as a JSON
+            number, serialized as an exact decimal literal. Parsing it as an
+            IEEE-754 double may lose precision for large meter counters; the
+            authoritative value is always `valueNum`/`valueScale`.
+          examples: [2341.72889972]
+        unit:
+          type: string
+          description: |
+            Unit of the value as reported by the meter (D0) or derived from the
+            SML unit code, or an empty string if the entry has no unit.
+          examples: ["kWh"]
+
+    OBISListResult:
+      type: object
+      title: OBIS list result
+      description: |
+        A set of OBIS entries belonging to one reading. On the push API this
+        contains only the entries that changed compared to the previous
+        reading, not the full reading.
+      required:
+        - measurementTime
+        - deviceID
+        - list
+      properties:
+        measurementTime:
+          type: string
+          format: date-time
+          description: |
+            Time at which the server read the data from the meter (server
+            clock, RFC 3339 with the server's local offset). Not a timestamp
+            taken from the meter itself.
+          examples: ["2025-12-15T21:10:29.730101646+01:00"]
+        deviceID:
+          type: string
+          description: |
+            Device identifier as announced by the meter: the D0 preamble line
+            without its leading `/`, or the SML server ID.
+          examples: ["EBZ5DD12345ETA_104"]
+        list:
+          type: array
+          description: The changed OBIS entries, in meter data order.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OBISEntry"
+
+    OBISSingleResult:
+      type: object
+      title: OBIS single result
+      description: |
+        One OBIS entry together with the reading's metadata. The entry is a
+        single object under `entry`, as opposed to the `list` array of
+        `OBISListResult`.
+      required:
+        - measurementTime
+        - deviceID
+        - entry
+      properties:
+        measurementTime:
+          type: string
+          format: date-time
+          description: See `OBISListResult.measurementTime`.
+          examples: ["2025-12-15T21:10:29.730101646+01:00"]
+        deviceID:
+          type: string
+          description: See `OBISListResult.deviceID`.
+          examples: ["EBZ5DD12345ETA_104"]
+        entry:
+          description: The changed OBIS entry.
+          $ref: "#/components/schemas/OBISEntry"
