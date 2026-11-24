@@ -133,6 +133,12 @@ func (d *deviceImpl) Get() (ParseableRawData, error) {
 			}
 		}
 	}
+
+	if d.config.AfterDelay > 0 {
+		log.Debugf("waiting afterdelay...")
+		time.Sleep(d.config.AfterDelay)
+	}
+
 	log.WithField("raw", response).Debugf("Raw data from device %s", d.config.Device)
 	result := RawDataFromString(response)
 	if err := scanner.Err(); err != nil {

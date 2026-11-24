@@ -28,6 +28,9 @@ type DeviceConfig struct {
 
 	// For continuous operations, time to wait until reconnect
 	ReconnectPause time.Duration
+
+	// Time to wait after receiving all data before the serial port is closed.
+	AfterDelay time.Duration
 }
 
 type ParseConfig struct {
